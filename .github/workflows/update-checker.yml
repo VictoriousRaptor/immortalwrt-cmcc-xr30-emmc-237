@@ -18,7 +18,6 @@ env:
 
 # 工作流触发条件
 on:
-  workflow_dispatch:  # 支持手动触发（需手动检查更新时使用）
   schedule:
     - cron: 0 18 * * *  # 定时触发：每天UTC时间18点（北京时间凌晨2点）自动执行
 
