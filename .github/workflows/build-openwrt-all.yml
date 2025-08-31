@@ -1,0 +1,451 @@
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+# https://github.com/P3TERX/Actions-OpenWrt
+# Description: Build OpenWrt using GitHub Actions
+#
+
+name: 编译固件（RAX3000M-EMMC）
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '选择编译方式'
+        required: true
+        default: 'Host'
+        type: choice
+        options:
+          - Host
+          - Docker
+      lan_ip:
+        description: '设置LAN IP地址'
+        required: false
+        default: '192.168.3.1'
+      default_theme:
+        description: '选择默认主题'
+        required: false
+        default: 'argon'
+        type: choice
+        options:
+          - argon
+          - bootstrap
+      hostname:
+        description: '设置主机名'
+        required: false
+        default: 'Rowrt'
+      ssh:
+        description: '通过SSH连接到Actions'
+        required: false
+        default: false
+        type: boolean
+      CACHEWRTBUILD_SWITCH:
+        description: '缓存加速编译'
+        required: false
+        default: true
+        type: boolean
+      CLEAN_BUILD:
+        description: '清理编译缓存（强制全新编译）'
+        required: false
+        default: false
+        type: boolean
+
+# 环境变量定义
+env:
+  # 基础配置
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
+  REPO_BRANCH: openwrt-24.10-6.6
+  CONFIG_FILE: .config
+  DIY_P1_SH: diy-part1.sh
+  DIY_P2_SH: diy-part2.sh
+  TARGET_DEVICE: cmcc_rax3000m-emmc
+  # 用户可配置参数 - 优先使用 workflow_dispatch 输入，其次使用 repository_dispatch 的 client_payload
+  LAN_IP: ${{ github.event.inputs.lan_ip || github.event.client_payload.inputs.lan_ip || '192.168.3.1' }}
+  DEFAULT_THEME: ${{ github.event.inputs.default_theme || github.event.client_payload.inputs.default_theme || 'argon' }}
+  HOSTNAME: ${{ github.event.inputs.hostname || github.event.client_payload.inputs.hostname || 'Rowrt' }}
+  BUILD_TYPE: ${{ github.event.inputs.build_type || github.event.client_payload.inputs.build_type || 'Host' }}
+  SSH: ${{ github.event.inputs.ssh || github.event.client_payload.inputs.ssh || false }}
+  CACHEWRTBUILD_SWITCH: ${{ github.event.inputs.CACHEWRTBUILD_SWITCH || github.event.client_payload.inputs.CACHEWRTBUILD_SWITCH || true }}
+  CLEAN_BUILD: ${{ github.event.inputs.CLEAN_BUILD || github.event.client_payload.inputs.CLEAN_BUILD || false }}
+  # 为布尔类型参数创建特殊处理变量
+  SSH_BOOL: ${{ (github.event.inputs.ssh == 'true') || (github.event.client_payload.inputs.ssh == true) }}
+  CACHEWRTBUILD_SWITCH_BOOL: ${{ (github.event.inputs.CACHEWRTBUILD_SWITCH == 'true') || (github.event.client_payload.inputs.CACHEWRTBUILD_SWITCH == true) }}
+  CLEAN_BUILD_BOOL: ${{ (github.event.inputs.CLEAN_BUILD == 'true') || (github.event.client_payload.inputs.CLEAN_BUILD == true) }}
+  # 上传配置
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_COWTRANSFER: false
+  UPLOAD_WETRANSFER: false
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+  # 统一目录结构 - 同时适用于主机和Docker模式
+  WORK_DIR: /workdir
+  SOURCE_DIR: /workdir/openwrt
+  CONTAINER_OUTPUT_DIR: /workdir/openwrt-out
+  TMP_OUTPUT_DIR: /workdir/tmp/shared-output
+  # Docker相关配置
+  DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
+  CONTAINER_RAW_SRC_DIR: /opt/openwrt
+  GITHUB_RUN_NUMBER: ${{ github.run_number }}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 600
+
+    steps:
+    - name: 检查代码
+      uses: actions/checkout@main
+      with:
+        fetch-depth: 1
+
+    - name: 初始化编译环境（主机模式）
+      if: env.BUILD_TYPE == 'Host'
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo mkdir -p "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
+        sudo chown -R $USER:$GROUPS "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
+        sudo chmod -R 777 "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
+        sudo cp -r ./ "${{ env.WORK_DIR }}"
+        chmod +x ${{ env.WORK_DIR }}/build-openwrt.sh ${{ env.WORK_DIR }}/diy-part1.sh ${{ env.WORK_DIR }}/diy-part2.sh
+        cd "${{ env.WORK_DIR }}"
+        source ${{ env.WORK_DIR }}/build-openwrt.sh
+        init_global_variables
+        init_env
+
+    - name: 启动Docker容器（Docker模式）
+      if: env.BUILD_TYPE == 'Docker'
+      run: |
+        sudo mkdir -p "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
+        sudo chown -R $USER:$GROUPS "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
+        sudo chmod -R 777 "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        FILTERED_TAGS=$(skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | \
+        grep -oE '"(ubuntu22.04|latest|[0-9]{12})"' | \
+        tr -d '"' | \
+        sort -r | \
+        awk 'BEGIN{seen["ubuntu22.04"]=0; seen["latest"]=0} { \
+          if ($1 ~ /^[0-9]{12}$/) { \
+            if (!latest_ts) {latest_ts=$1; print $1} \
+          } else if (!seen[$1]++) { \
+            print $1 \
+          } \
+        }')
+        echo "本次镜像的标签："
+        echo "$FILTERED_TAGS"
+        echo "-----------------"
+        docker pull "${{ env.DOCKER_IMAGE }}"
+        docker run -d --name builder \
+          -v "$PWD":"${{ env.WORK_DIR }}" \
+          -v "${{ env.TMP_OUTPUT_DIR }}":"${{ env.TMP_OUTPUT_DIR }}":rw \
+          -e TZ="${{ env.TZ }}" \
+          -e FORCE_UNSAFE_CONFIGURE=1 \
+          -e REPO_URL="${{ env.REPO_URL }}" \
+          -e REPO_BRANCH="${{ env.REPO_BRANCH }}" \
+          -e CONFIG_FILE="${{ env.CONFIG_FILE }}" \
+          -e DIY_P1_SH="${{ env.DIY_P1_SH }}" \
+          -e DIY_P2_SH="${{ env.DIY_P2_SH }}" \
+          -e TARGET_DEVICE="${{ env.TARGET_DEVICE }}" \
+          -e WORK_DIR="${{ env.WORK_DIR }}" \
+          -e SOURCE_DIR="${{ env.SOURCE_DIR }}" \
+          -e CONTAINER_OUTPUT_DIR="${{ env.CONTAINER_OUTPUT_DIR }}" \
+          -e DOCKER_IMAGE="${{ env.DOCKER_IMAGE }}" \
+          -e CONTAINER_RAW_SRC_DIR="${{ env.CONTAINER_RAW_SRC_DIR }}" \
+          -e DEFAULT_THEME="${{ env.DEFAULT_THEME }}" \
+          -e HOSTNAME="${{ env.HOSTNAME }}" \
+          -e LAN_IP="${{ env.LAN_IP }}" \
+          -e GITHUB_RUN_NUMBER="${{ github.run_number }}" \
+          -e TMP_OUTPUT_DIR="${{ env.TMP_OUTPUT_DIR }}" \
+          "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
+        echo -e "\n=== 验证容器运行状态 ==="
+        docker ps -a | grep builder
+        if [ $? -ne 0 ]; then
+          echo "❌ 容器启动失败，请查看日志："
+          docker logs builder
+          exit 1
+        fi
+        echo "✅ 容器运行正常"
+        docker exec builder bash -c '
+          source $WORK_DIR/build-openwrt.sh && init_global_variables
+        '
+        
+        echo -e "\n=== 迁移预置源码到共享目录 ==="
+        docker exec builder bash -c '
+          if [ -d "$SOURCE_DIR" ]; then
+            echo "⚠️ 清理共享目录旧内容：""$SOURCE_DIR"
+            rm -rf "$SOURCE_DIR"/* "$SOURCE_DIR"/.* 2>/dev/null
+          else
+            mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
+          fi
+          echo "开始复制源码（含隐藏文件）..."
+          cp -a "$CONTAINER_RAW_SRC_DIR"/. "$SOURCE_DIR"
+          critical_files=("scripts/feeds" "target/linux" "package")
+          for file in "${critical_files[@]}"; do
+            check_path="$SOURCE_DIR/$file"
+            if [ ! -e "$check_path" ]; then
+              echo "❌ 迁移失败：共享目录缺失关键文件 $check_path"
+              exit 1
+            fi
+          done
+          echo "✅ 预置源码迁移完成"
+          echo "  - 从：$CONTAINER_RAW_SRC_DIR"
+          echo "  - 到：""$SOURCE_DIR"
+          echo "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
+          cd "$SOURCE_DIR"
+          if [ ! -d .git ]; then
+              git init && \
+              git config --global user.email "actions@github.com" && \
+              git config --global user.name "GitHub Actions" && \
+              git add . && \
+              git commit -m "初始化仓库用于缓存" --allow-empty
+          else
+              git fetch --all && \
+              git reset --hard HEAD
+          fi
+          echo "✅ Git仓库初始化完成"
+        '
+        
+    - name: 克隆源码（主机模式）
+      if: env.BUILD_TYPE == 'Host'
+      run: |
+        source ${{ env.WORK_DIR }}/build-openwrt.sh
+        prepare_source
+
+    - name: 加载自定义feeds
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_feeds
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_feeds'
+        fi
+    
+    - name: 更新并安装feeds
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh
+          update_install_feeds
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && update_install_feeds'
+        fi
+    
+    - name: 加载自定义配置
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh
+          load_custom_config
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_config' 
+        fi
+      
+    - name: SSH远程连接（make menuconfig）
+      uses: rogueme/debugger-action@main
+      if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
+        TIMEOUT_MIN: 360
+          
+    - name: 同步.config（仅SSH模式）
+      if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Docker" ]]; then
+          # 先从容器复制.config到主机
+          docker cp builder:${{ env.SOURCE_DIR }}/.config "/tmp/.config.docker"
+          cp -f "/tmp/.config.docker" "${{ env.SOURCE_DIR }}/.config"
+        fi
+        source ${{ env.WORK_DIR }}/build-openwrt.sh
+        sync_config "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}" "${{ github.ref }}"
+
+    - name: 缓存加速编译
+      if: env.CACHEWRTBUILD_SWITCH_BOOL && !env.CLEAN_BUILD_BOOL
+      uses: stupidloud/cachewrtbuild@main
+      with:
+        ccache: 'true'
+        mixkey: "${{ env.REPO_BRANCH }}-${{ env.TARGET_DEVICE }}-${{ hashFiles('diy-*.sh') }}-${{ hashFiles('.config') }}"
+        prefix: ${{ env.SOURCE_DIR }}
+    
+    - name: 缓存Docker模式依赖
+      if: env.BUILD_TYPE == 'Docker' && env.CACHEWRTBUILD_SWITCH_BOOL && !env.CLEAN_BUILD_BOOL
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ env.SOURCE_DIR }}/.ccache
+          ${{ env.SOURCE_DIR }}/dl
+        key: docker-cache-${{ env.REPO_BRANCH }}-${{ env.TARGET_DEVICE }}-${{ hashFiles('diy-*.sh') }}-${{ hashFiles('.config') }}
+        restore-keys: |
+          docker-cache-${{ env.REPO_BRANCH }}-${{ env.TARGET_DEVICE }}-
+
+    - name: 下载软件包
+      id: package
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && download_packages
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && download_packages'
+        fi
+
+    - name: 提取已选插件列表
+      id: extract_plugins
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && extract_plugins
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && extract_plugins'
+        fi
+        
+    - name: 释放Ubuntu磁盘空间
+      uses: danshui-git/free-disk-space@main
+      with:
+        remove_android: true
+        remove_dotnet: true
+        remove_haskell: true
+        remove_tool_cache: true
+        remove_swap: true
+        remove_docker_image: ${{ github.event.inputs.build_type == 'Host' && 'true' || 'false' }}
+        remove_packages: "azure-cli google google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-* mono-*"
+        remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/local/lib/node_modules /usr/local/share/chromium /var/cache/apt/archives"
+    - name: 查看清理后磁盘空间
+      run: |
+        echo "===== 磁盘空间 ====="
+        df -h
+        
+    - name: 编译固件
+      id: compile
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware'
+        fi
+        echo "===== 开始读取编译变量 ====="
+        if [ -f "${{ env.TMP_OUTPUT_DIR }}/DEVICE_NAME" ]; then
+          DEVICE_NAME="$(cat "${{ env.TMP_OUTPUT_DIR }}/DEVICE_NAME")"
+          echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
+          echo "device_name=$DEVICE_NAME" >> $GITHUB_OUTPUT
+          echo "✅ 已读取设备名称: $DEVICE_NAME"
+        fi
+        
+        # 读取文件日期
+        if [ -f "${{ env.TMP_OUTPUT_DIR }}/FILE_DATE" ]; then
+          FILE_DATE="$(cat "${{ env.TMP_OUTPUT_DIR }}/FILE_DATE")"
+          echo "FILE_DATE=$FILE_DATE" >> $GITHUB_ENV
+          echo "file_date=$FILE_DATE" >> $GITHUB_OUTPUT
+          echo "✅ 已读取文件日期: $FILE_DATE"
+        fi
+        
+        # 读取编译状态
+        if [ -f "${{ env.TMP_OUTPUT_DIR }}/status" ]; then
+          status="$(cat "${{ env.TMP_OUTPUT_DIR }}/status")"
+          echo "status=$status" >> $GITHUB_OUTPUT
+          echo "✅ 已读取编译状态: $status"
+        fi
+        
+        # 读取插件列表
+        if [ -f "${{ env.TMP_OUTPUT_DIR }}/plugins_list" ]; then
+          plugins_list="$(cat "${{ env.TMP_OUTPUT_DIR }}/plugins_list")"
+          echo "plugins_list=$plugins_list" >> $GITHUB_OUTPUT
+          echo "✅ 已读取插件列表"
+        fi
+        
+        echo "===== 编译变量读取完成 =====
+
+    - name: 检查编译后磁盘空间
+      if: (!cancelled())
+      run: |
+        echo "===== 磁盘空间 ====="
+        df -hT
+
+    - name: 上传bin目录
+      uses: actions/upload-artifact@v4
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.SOURCE_DIR }}/bin
+        retention-days: 7
+
+    - name: 整理固件文件
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
+      run: |
+        cd ${{ env.SOURCE_DIR }}openwrt/bin/targets/*/*
+        rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null
+        echo "整理后的固件文件:"
+        ls -lh
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "✅ 固件文件整理完成"
+
+    - name: 上传固件到Artifact
+      uses: actions/upload-artifact@v4
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
+        retention-days: 7
+
+    - name: 上传到奶牛快传
+      id: cowtransfer
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true' && !cancelled()
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer cow --block 2621440 -s -p 64 --no-progress ${FIRMWARE} 2>&1 | tee cowtransfer.log
+        echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
+        echo "url=$(cat cowtransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_OUTPUT
+
+    - name: 上传到WeTransfer
+      id: wetransfer
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true' && !cancelled()
+      run: |
+        curl -fsSL git.io/file-transfer | sh
+        ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
+        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
+        echo "url=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_OUTPUT
+
+    - name: 生成发布信息
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
+      run: |
+        echo "release_tag=$(date +"%Y.%m.%d-%H%M")-immortalwrt-${{ env.TARGET_DEVICE }}" >> $GITHUB_OUTPUT
+        cat > release.txt <<EOF
+        ### ${TARGET_DEVICE}-immortalwrt 固件
+        
+        - 后台地址：${{ github.event.inputs.lan_ip }}
+        - 登录账号：root
+        - 登录密码：无
+        - Luci版本：24.10
+        - 内核版本：6.6
+        - 默认主题：${{ github.event.inputs.default_theme }}
+        - 主机名：${{ github.event.inputs.hostname }}
+        
+        #### 已选插件列表
+        ${{ steps.extract_plugins.outputs.plugins_list }}
+        
+        #### 编译信息
+        - 编译方式：${{ github.event.inputs.build_type }}
+        - 源码：${REPO_URL}
+        - 分支：${REPO_BRANCH}
+        - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
+        - 工作流编号：#${{ github.run_number }}
+        EOF
+        echo "status=success" >> $GITHUB_OUTPUT
+        cat release.txt
+        echo "✅ 发布信息生成完成"
+
+    - name: 上传固件到Release
+      uses: softprops/action-gh-release@v2
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
+
+    - name: 清理旧工作流记录
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 3
+        keep_minimum_runs: 3
+        repository: ${{ github.repository }}

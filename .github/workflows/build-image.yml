@@ -1,0 +1,231 @@
+name: 构建OpenWrt专用Docker镜像
+
+on:
+  workflow_dispatch:  # 手动触发
+  repository_dispatch:  
+    types: [固件源码更新构建容器]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180  # 延长超时时间，避免编译中断
+    steps:
+      - name: 检查代码
+        uses: actions/checkout@main
+
+      - name: 检查磁盘空间并设置清理标记
+        run: |
+          AVAILABLE_SPACE=$(df -P / | tail -1 | awk '{print $4 / 1024 / 1024}' | cut -d '.' -f 1)
+          echo "当前根目录可用空间: ${AVAILABLE_SPACE}GB"
+          if [ $AVAILABLE_SPACE -lt 20 ]; then  # 提高阈值到20GB，确保编译空间充足
+            echo "可用空间不足20GB，将执行深度清理"
+            echo "NEED_CLEAN=true" >> $GITHUB_ENV
+          else
+            echo "可用空间充足（≥20GB），无需清理"
+            echo "NEED_CLEAN=false" >> $GITHUB_ENV
+          fi
+
+      - name: 释放Ubuntu磁盘空间
+        if: env.NEED_CLEAN == 'true'
+        uses: danshui-git/free-disk-space@main
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_tool_cache: true
+          remove_swap: true
+          remove_docker_image: true
+          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
+          remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/lib/node_modules /usr/local/share/chromium /usr/local/share/powershell"
+
+      - name: 查看磁盘空间状态
+        run: df -h /
+
+      - name: 配置Docker登录
+        run: |
+          echo "=== 开始登录 GHCR ==="
+          LOGIN_OUTPUT=$(echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin 2>&1)
+          LOGIN_EXIT_CODE=$?  # 捕获命令退出码
+          echo "登录输出日志：$LOGIN_OUTPUT"
+          if [ $LOGIN_EXIT_CODE -eq 0 ] && echo "$LOGIN_OUTPUT" | grep -q "Login Succeeded"; then
+            echo "✅ 登录GHCR成功"
+          else
+            echo "❌ 登录GHCR失败，完整日志：$LOGIN_OUTPUT"
+            exit 1  # 登录失败时终止工作流
+          fi
+        shell: /usr/bin/bash -e {0}
+        env:
+          NEED_CLEAN: false
+
+      - name: 清理并初始化Buildx
+        run: |
+          docker buildx stop openwrt-builder || true
+          docker buildx rm -f openwrt-builder || true
+          docker buildx prune -af
+          docker buildx create --name openwrt-builder --use
+          docker buildx inspect --bootstrap
+          docker buildx ls
+          echo "✅ Buildx初始化完成"
+
+      - name: 生成时间戳标签
+        run: |
+          TIMESTAMP=$(date +"%Y%m%d%H%M")
+          echo -e "   生成的时间戳：$TIMESTAMP"
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+
+      - name: 构建镜像（含缓存加速）
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          builder: openwrt-builder
+          build-args: |
+            BASE_IMAGE_REGISTRY=${{ env.BASE_IMAGE_REGISTRY || 'docker.io/library/' }}
+            BASE_IMAGE_TAG=${{ env.BASE_IMAGE_TAG }}
+            FORCE_UNSAFE_CONFIGURE=1
+            BUILD_TRIGGER=$(git ls-remote ${{ env.REPO_URL }} ${{ env.REPO_BRANCH }} | awk '{print $1}')
+          tags: |
+            openwrt-builder:${{ env.TIMESTAMP }}
+            ghcr.io/${{ github.repository_owner }}/openwrt-builder:${{ env.TIMESTAMP }}
+            ghcr.io/${{ github.repository_owner }}/openwrt-builder:ubuntu22.04
+            ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/openwrt-builder:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/openwrt-builder:cache,mode=max
+          pull: true
+          load: true
+        env:
+          REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
+          REPO_BRANCH: openwrt-24.10-6.6
+          
+      - name: 验证镜像环境
+        run: |
+          echo "本地已构建的镜像："
+          docker images | grep openwrt-builder
+          echo "=== 开始验证本地镜像核心环境 ==="
+          LOCAL_IMAGE_TAG="openwrt-builder:${{ env.TIMESTAMP }}"
+          
+          if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$LOCAL_IMAGE_TAG"; then
+            echo "❌ 本地镜像 $LOCAL_IMAGE_TAG 不存在，构建失败！"
+            exit 1
+          fi
+          
+          echo -e "\n--- 获取本地镜像内环境变量 ---"
+          SRC_OPENWRT_DIR=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "echo \$SRC_OPENWRT_DIR")
+          FORCE_UNSAFE_CONFIGURE=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "echo \$FORCE_UNSAFE_CONFIGURE")
+          
+          if [ -z "$SRC_OPENWRT_DIR" ] || [ -z "$FORCE_UNSAFE_CONFIGURE" ]; then
+            echo "❌ 获取环境变量失败！"
+            echo "SRC_OPENWRT_DIR: '$SRC_OPENWRT_DIR'"
+            echo "FORCE_UNSAFE_CONFIGURE: '$FORCE_UNSAFE_CONFIGURE'"
+            exit 1
+          fi
+          echo "✅ 获取到的环境变量："
+          echo "SRC_OPENWRT_DIR（源码目录）: $SRC_OPENWRT_DIR"
+          echo "FORCE_UNSAFE_CONFIGURE（编译变量）: $FORCE_UNSAFE_CONFIGURE"
+      
+          echo -e "\n--- 获取源码目录（$SRC_OPENWRT_DIR）详细信息 ---"
+          DIR_DETAILS=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "
+            set -e
+            SRC_DIR=\$SRC_OPENWRT_DIR
+            # 目录存在性
+            if [ -d \"\$SRC_DIR\" ]; then
+              EXIST_STATUS=\"✅ 存在\"
+            else
+              EXIST_STATUS=\"❌ 不存在\"
+            fi
+            SIZE_MB=\$(du -sm \"\$SRC_DIR\" | awk '{print \$1}')
+            FILE_COUNT=\$(find \"\$SRC_DIR\" | wc -l)
+            MODIFY_TIME=\$(stat -c \"%y\" \"\$SRC_DIR\" | cut -d' ' -f1-2)  # 格式：YYYY-MM-DD HH:MM
+            echo \"\$EXIST_STATUS|\$SIZE_MB|\$SIZE_HUMAN|\$FILE_COUNT|\$MODIFY_TIME|\$SRC_DIR\"
+          ")
+      
+          EXIST_STATUS=$(echo "$DIR_DETAILS" | cut -d'|' -f1)
+          SIZE_MB=$(echo "$DIR_DETAILS" | cut -d'|' -f2)
+          FILE_COUNT=$(echo "$DIR_DETAILS" | cut -d'|' -f4)
+          MODIFY_TIME=$(echo "$DIR_DETAILS" | cut -d'|' -f5)
+          ACTUAL_DIR=$(echo "$DIR_DETAILS" | cut -d'|' -f6)
+      
+          echo -e "📂 源码目录详细信息："
+          echo "   目录路径        ：$ACTUAL_DIR"
+          echo "   目录存在性      ：$EXIST_STATUS"
+          echo "   总体积（MB）    ：$SIZE_MB MB"
+          echo "   包含文件/子目录数：$FILE_COUNT 个（递归统计）"
+          echo "   最后修改时间    ：$MODIFY_TIME"
+      
+          if [[ "$EXIST_STATUS" == *"不存在"* ]]; then
+            echo -e "\n❌ 源码目录不存在，镜像构建失败！"
+            exit 1
+          fi
+          if [ "$SIZE_MB" -lt 250 ]; then
+            echo -e "\n❌ 源码目录体积过小（$SIZE_MB MB < 250 MB），可能存在源码克隆不完整！"
+            exit 1
+          fi
+          echo -e "\n✅ 源码目录详细信息验证通过，状态正常！"
+          
+      - name: 推送镜像到GHCR
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/openwrt-builder:${{ env.TIMESTAMP }} && \
+          docker push ghcr.io/${{ github.repository_owner }}/openwrt-builder:ubuntu22.04 && \
+          docker push ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
+
+      - name: 验证远程镜像
+        run: |
+          sudo apt-get update && sudo apt-get install -y skopeo
+          echo "远程仓库已推送的标签："
+          skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | grep -E "${{ env.TIMESTAMP }}|ubuntu22.04|latest"
+
+      - name: 安装jq工具
+        run: |
+          echo "=== 安装jq工具用于解析JSON ==="
+          sudo apt-get update
+          sudo apt-get install -y jq
+          echo "✅ jq工具安装完成"
+          echo "当前jq版本：$(jq --version)"
+
+      - name: 触发编译固件工作流
+        run: |
+          echo "=== 开始触发编译固件工作流 ==="
+          # 定义触发工作流所需的参数
+          BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
+          {
+            "event_type": "容器更新触发自动编译固件",
+            "client_payload": {
+              "inputs": {
+                "build_type": "Docker",
+                "lan_ip": "192.168.3.1",
+                "default_theme": "argon",
+                "hostname": "Rowrt",
+                "ssh": false,
+                "CACHEWRTBUILD_SWITCH": true,
+                "CLEAN_BUILD": false
+              }
+            }
+          }
+          EOF
+          )
+          
+          # 发送请求触发工作流
+          RESPONSE=$(curl -X POST \
+            -H "Authorization: token ${{ secrets.REPO_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            -d "$BUILD_TRIGGER_PAYLOAD" 2>&1)
+          
+          # 检查触发结果
+          if [ $? -eq 0 ]; then
+            echo "✅ 编译固件工作流已成功触发"
+            echo "触发参数:"
+            
+            # 从BUILD_TRIGGER_PAYLOAD中提取参数并输出，避免维护两份
+            echo "  - event_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.event_type')"
+            echo "  - build_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.build_type')"
+            echo "  - lan_ip: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.lan_ip')"
+            echo "  - default_theme: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.default_theme')"
+            echo "  - hostname: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.hostname')"
+            echo "  - ssh: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.ssh')"
+            echo "  - CACHEWRTBUILD_SWITCH: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.CACHEWRTBUILD_SWITCH')"
+            echo "  - CLEAN_BUILD: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.CLEAN_BUILD')"
+          else
+            echo "❌ 编译固件工作流触发失败！"
+            echo "错误信息: $RESPONSE"
+            # 不中断流程，仅记录错误
+          fi

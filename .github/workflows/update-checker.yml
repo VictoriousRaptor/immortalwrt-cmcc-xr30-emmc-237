@@ -1,0 +1,83 @@
+#
+# Copyright (c) 2019-2021 P3TERX <https://p3terx.com>
+#
+# 本文件为免费软件，基于MIT协议授权。
+# 详见/LICENSE文件获取更多信息。
+#
+# 来源：https://github.com/P3TERX/Actions-OpenWrt
+# 文件：.github/workflows/update-checker.yml
+# 描述：源码更新自动检测工作流（日志中文化，修复语法错误）
+#
+
+name: 固件源码更新检测器
+
+env:
+  # 目标监控的源码仓库信息
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
+  REPO_BRANCH: openwrt-24.10-6.6
+
+# 工作流触发条件
+on:
+  workflow_dispatch:  # 支持手动触发（需手动检查更新时使用）
+  schedule:
+    - cron: 0 18 * * *  # 定时触发：每天UTC时间18点（北京时间凌晨2点）自动执行
+
+jobs:
+  check:
+    runs-on: ubuntu-latest  # 运行环境：最新版Ubuntu
+    steps:
+
+    # 步骤1：获取源码最新提交哈希（唯一标识版本）
+    - name: 获取最新提交哈希
+      id: getHash
+      run: |
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 开始执行源码更新检测..."
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 目标仓库：$REPO_URL（分支：$REPO_BRANCH）"
+        # 浅克隆仓库（仅拉取最新1次提交，提升效率）
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
+        # 提取当前提交的哈希值（版本唯一标识）
+        COMMIT_HASH=$(git rev-parse HEAD)
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 成功获取最新提交哈希：$COMMIT_HASH"
+        # 将哈希值传递给后续步骤
+        echo "commitHash=$COMMIT_HASH" >> $GITHUB_OUTPUT
+
+    # 步骤2：对比提交哈希（判断是否有更新）
+    - name: 对比提交哈希（检测更新）
+      id: cacheHash
+      uses: actions/cache@v3
+      with:
+        path: .commitHash  # 缓存文件：存储上次检测的提交哈希
+        key: HEAD-${{ steps.getHash.outputs.commitHash }}  # 缓存键：HEAD-最新哈希
+
+    # 步骤3：无更新时输出提示
+    - name: 输出无更新提示
+      if: steps.cacheHash.outputs.cache-hit == 'true'
+      run: |
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 缓存命中！当前提交与上次检测一致"
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 源码无更新，无需触发镜像构建"
+
+    # 步骤4：有更新时保存新哈希（供下次对比）
+    - name: 保存新提交哈希
+      if: steps.cacheHash.outputs.cache-hit != 'true'
+      run: |
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 缓存未命中！检测到源码新提交"
+        # 将新哈希写入文件，用于下次缓存对比
+        echo ${{ steps.getHash.outputs.commitHash }} | tee .commitHash
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getHash.outputs.commitHash }}"
+
+    # 步骤5：有更新时触发镜像构建工作流
+    - name: 触发镜像构建工作流（build-image.yml）
+      if: steps.cacheHash.outputs.cache-hit != 'true'
+      uses: peter-evans/repository-dispatch@v1
+      with:
+        token: ${{ secrets.REPO_TOKEN }}  # 触发权限令牌（需在仓库Secrets配置）
+        event-type: 固件源码更新构建容器  # 事件类型（需与build-image.yml一致）
+        # 传递参数（供镜像构建工作流使用，中文注释说明参数含义）
+        client-payload: '{"repo_url": "${{ env.REPO_URL }}", "repo_branch": "${{ env.REPO_BRANCH }}", "commit_hash": "${{ steps.getHash.outputs.commitHash }}", "trigger_source": "源码更新检测工作流"}'
+
+    # 步骤6：清理旧工作流记录（保持页面整洁）
+    - name: 清理旧工作流记录
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 3  # 仅保留1天内的记录
+        keep_minimum_runs: 3  # 最少保留1条记录（避免清空）
