@@ -37,7 +37,6 @@ return 1
 # ======================================================
 init_env() {
 log_info "开始初始化编译环境..."
-
 # 更新系统并安装依赖
 sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
 sudo -E apt-get -qq update
@@ -56,14 +55,11 @@ sudo -E apt-get -qq install \
 # 清理系统
 sudo -E apt-get -qq autoremove --purge
 sudo -E apt-get -qq clean
-
 # 设置时区
 sudo timedatectl set-timezone "$TZ"
-
 # 设置工作目录权限
 sudo mkdir -p "$WORK_DIR"
 sudo chown -R $USER:$GROUPS "$WORK_DIR"
-
 log_info "编译环境初始化完成！"
 log_info "工作目录：$WORK_DIR"
 }
@@ -75,26 +71,21 @@ log_info "工作目录：$WORK_DIR"
 extract_cache_variables() {
 log_info "开始提取缓存相关变量..."
 cd "$SOURCE_DIR"
-
 if ! git config --get user.email > /dev/null; then
     git config --global user.email "actions@github.com"
     git config --global user.name "GitHub Actions"
 fi
-
 # 获取最后提交的哈希值
 HASH=$(git log -1 --pretty=format:'%h')
 echo "HASH=$HASH" >> "$GITHUB_ENV"
-
 # 提取设备目标信息
 DEVICE_TARGET=$(grep -oP 'CONFIG_TARGET_BOARD=\K.*' .config || echo "unknown")
 echo "DEVICE_TARGET=$DEVICE_TARGET" >> "$GITHUB_ENV"
 DEVICE_SUBTARGET=$(grep -oP 'CONFIG_TARGET_SUBTARGET=\K.*' .config || echo "unknown")
 echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> "$GITHUB_ENV"
-
 # 获取源码仓库名称
 SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}' | sed 's/\.git$//')"
 echo "SOURCE_REPO=$SOURCE_REPO" >> "$GITHUB_ENV"
-
 # 输出变量用于调试
 log_info "缓存变量信息："
 log_info "- SOURCE_REPO: $SOURCE_REPO"
@@ -102,7 +93,6 @@ log_info "- REPO_BRANCH: $REPO_BRANCH"
 log_info "- DEVICE_TARGET: $DEVICE_TARGET"
 log_info "- DEVICE_SUBTARGET: $DEVICE_SUBTARGET"
 log_info "- HASH: $HASH"
-
 log_info "缓存相关变量提取完成！"
 }
 
