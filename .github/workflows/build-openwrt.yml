@@ -36,6 +36,11 @@ on:
         description: '设置主机名'
         required: false
         default: 'Rowrt'
+      high_power_5g:
+        description: '5G高功率25db'
+        required: false
+        default: true
+        type: boolean
       ssh:
         description: '通过SSH连接到Actions'
         required: false
@@ -65,6 +70,7 @@ env:
   LAN_IP: ${{ github.event.inputs.lan_ip || github.event.client_payload.inputs.lan_ip || '192.168.3.1' }}
   DEFAULT_THEME: ${{ github.event.inputs.default_theme || github.event.client_payload.inputs.default_theme || 'argon' }}
   HOSTNAME: ${{ github.event.inputs.hostname || github.event.client_payload.inputs.hostname || 'Rowrt' }}
+  HIGH_POWER_5G: ${{ github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || false }}
   BUILD_TYPE: ${{ github.event.inputs.build_type || github.event.client_payload.inputs.build_type || 'Host' }}
   SSH: ${{ github.event.inputs.ssh || github.event.client_payload.inputs.ssh || false }}
   CACHEWRTBUILD_SWITCH: ${{ github.event.inputs.CACHEWRTBUILD_SWITCH || github.event.client_payload.inputs.CACHEWRTBUILD_SWITCH || true }}
@@ -157,6 +163,7 @@ jobs:
           -e DEFAULT_THEME="${{ env.DEFAULT_THEME }}" \
           -e HOSTNAME="${{ env.HOSTNAME }}" \
           -e LAN_IP="${{ env.LAN_IP }}" \
+          -e HIGH_POWER_5G="${{ env.HIGH_POWER_5G }}" \
           -e GITHUB_RUN_NUMBER="${{ github.run_number }}" \
           -e TMP_OUTPUT_DIR="${{ env.TMP_OUTPUT_DIR }}" \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null

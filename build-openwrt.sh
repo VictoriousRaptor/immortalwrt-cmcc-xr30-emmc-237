@@ -40,7 +40,7 @@ init_global_variables() {
 log_info "开始初始化全局变量..."
 
 # 定义变量映射表，方便统一管理
-local var_map=("REPO_URL" "REPO_BRANCH" "CONFIG_FILE" "DIY_P1_SH" "DIY_P2_SH" "TARGET_DEVICE" "TZ" "WORK_DIR" "SOURCE_DIR" "CONTAINER_OUTPUT_DIR" "DOCKER_IMAGE" "CONTAINER_RAW_SRC_DIR" "DEFAULT_THEME" "HOSTNAME" "LAN_IP" "GITHUB_RUN_NUMBER" "TMP_OUTPUT_DIR")
+local var_map=("REPO_URL" "REPO_BRANCH" "CONFIG_FILE" "DIY_P1_SH" "DIY_P2_SH" "TARGET_DEVICE" "TZ" "WORK_DIR" "SOURCE_DIR" "CONTAINER_OUTPUT_DIR" "DOCKER_IMAGE" "CONTAINER_RAW_SRC_DIR" "DEFAULT_THEME" "HOSTNAME" "LAN_IP" "GITHUB_RUN_NUMBER" "TMP_OUTPUT_DIR" "HIGH_POWER_5G")
 
 # 遍历所有需要处理的变量
 for var_name in "${var_map[@]}"; do
@@ -280,6 +280,40 @@ if [ -n "$HOSTNAME" ]; then
     sed -i "s/set system.@system\[-1\].hostname='ImmortalWrt'/set system.@system[-1].hostname='${HOSTNAME}'/g" "$SOURCE_DIR/package/base-files/files/bin/config_generate"
     sed -i "s/'hostname:string:OpenWrt'/'hostname:string:${HOSTNAME}'/g" "$SOURCE_DIR/package/base-files/files/etc/init.d/system"
     sed -i "s/echo OpenWrt-failsafe/echo ${HOSTNAME}-failsafe/g" "$SOURCE_DIR/package/base-files/files/lib/preinit/10_indicate_failsafe"
+fi
+
+if [ "$HIGH_POWER_5G" = "true" ]; then
+    log_info "设置5G高功率25db"
+    rm -f $SOURCE_DIR/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p
+    if [ $? -eq 0 ]; then
+    log_info "删除 e2p 成功"
+    else
+    log_error "删除 e2p 失败"
+    fi
+    EEPROM_FILE="$SOURCE_DIR/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin"
+    if [ -f "$EEPROM_FILE" ]; then
+    mkdir -p files/lib/firmware
+    ln -sf /lib/firmware/MT7981_iPAiLNA_EEPROM.bin files/lib/firmware/e2p
+    log_info "符号链接已创建"
+    ls -l files/lib/firmware/e2p || { log_error "符号链接创建失败"; exit 1; }
+    else
+    log_error "$EEPROM_FILE 不存在，无法创建符号链接"
+    exit 1
+    fi
+    EEPROM_FILE=$(find $SOURCE_DIR/package -name MT7981_iPAiLNA_EEPROM.bin 2>/dev/null | head -n 1)
+    if [ -z "$EEPROM_FILE" ]; then
+        log_error "未找到 EEPROM 文件"
+        exit 1
+    fi
+    EXPECTED_CONTENT=$(printf '\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B')
+    CURRENT_CONTENT=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>/dev/null || log_error "读取EEPROM文件失败")
+    if [ "$CURRENT_CONTENT" != "$EXPECTED_CONTENT" ]; then
+        printf '\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B' | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) conv=notrunc
+        log_info "EEPROM 文件已更新: $EEPROM_FILE"
+    else
+        log_info "EEPROM 文件无需修改: $EEPROM_FILE"
+    fi
+    log_info "5G高功率25db设置完成"
 fi
 
 log_info "自定义配置加载完成！"
