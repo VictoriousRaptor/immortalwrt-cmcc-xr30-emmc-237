@@ -116,7 +116,7 @@ jobs:
         sudo chown -R $USER:$GROUPS "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
         sudo chmod -R 777 "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
         sudo cp -r ./ "${{ env.WORK_DIR }}"
-        chmod +x ${{ env.WORK_DIR }}/build-openwrt.sh ${{ env.WORK_DIR }}/diy-part1.sh ${{ env.WORK_DIR }}/diy-part2.sh
+        sudo chmod +x ${{ env.WORK_DIR }}/build-openwrt.sh ${{ env.WORK_DIR }}/diy-part1.sh ${{ env.WORK_DIR }}/diy-part2.sh
         cd "${{ env.WORK_DIR }}"
         source ${{ env.WORK_DIR }}/build-openwrt.sh
         init_global_variables
