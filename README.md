@@ -11,10 +11,10 @@
 2. [padavanonly/immortalwrt-mt798x-6.6](https://github.com/padavanonly/immortalwrt-mt798x-6.6) - ImmortalWrt 24.10（Linux内核6.6）固件源码
 
 - 专门为中国移动RAX3000M路由器（eMMC存储版本）定制，提供自动化编译、自定义插件和优化功能。
-- 编译其他型号
-   - 1.替换.config配置文件或更改其相关型号内容
-   - 2.通过‘make menuconfig’选择对应型号
-#### 特别提示：编译其他型号时，需到`.github\workflows`目录下的`build-openwrt.yml`文件中`TARGET_DEVICE`中的`cmcc_rax3000m-emmc`修改为对应的型号
+- 编译其他设备
+   - 1.替换.config配置文件或更改其相关设备内容
+   - 2.通过‘make menuconfig’选择对应设备
+#### 特别提示：编译其他设备时，需到`.github\workflows`目录下的`build-openwrt.yml`文件中`TARGET_DEVICE`环境变量的值`cmcc_rax3000m-emmc`修改为需要编译的设备
 ## 特性
 
 - **自动化编译**：使用GitHub Actions实现自动构建流程

@@ -10,8 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     REPO_URL=https://github.com/padavanonly/immortalwrt-mt798x-6.6 \
     REPO_BRANCH=openwrt-24.10-6.6 \
     SRC_OPENWRT_DIR=/opt/openwrt \
-    OUTPUT_OPENWRT_DIR=/workdir/openwrt-out \
     MIN_SRC_SIZE_MB=150
+
 
 # 命令失败时立即终止构建
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -40,8 +40,8 @@ RUN set -e && \
            /var/spool /usr/lib/systemd /usr/lib/python*/test \
            /usr/lib/jvm/*/src.zip /usr/lib/jvm/*/demo && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
-    mkdir -p $OUTPUT_OPENWRT_DIR /workspace $SRC_OPENWRT_DIR && \
-    chmod 777 $OUTPUT_OPENWRT_DIR /workspace $SRC_OPENWRT_DIR && \
+    mkdir -p $SRC_OPENWRT_DIR && \
+    chmod 777 $SRC_OPENWRT_DIR && \
     echo "=== 获取远程源码哈希: $REPO_URL ($REPO_BRANCH) ===" && \
     REMOTE_COMMIT=$(git ls-remote $REPO_URL $REPO_BRANCH | awk '{print $1}') && \
     if [ -z "$REMOTE_COMMIT" ]; then \
@@ -71,5 +71,6 @@ RUN set -e && \
     cd $SRC_OPENWRT_DIR && \
     rm -rf .git/logs .git/objects/pack .git/hooks .git/info && \
     echo "=== 源码克隆及校验完成，体积: $(du -sh $SRC_OPENWRT_DIR | cut -f1) ==="
+
 # 工作目录
 WORKDIR $SRC_OPENWRT_DIR

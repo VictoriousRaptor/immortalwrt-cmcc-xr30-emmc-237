@@ -77,7 +77,7 @@ env:
   CLEAN_BUILD: ${{ github.event.inputs.CLEAN_BUILD || github.event.client_payload.inputs.CLEAN_BUILD || false }}
   # 为布尔类型参数创建特殊处理变量
   SSH_BOOL: ${{ (github.event.inputs.ssh == 'true') || (github.event.client_payload.inputs.ssh == true) }}
-  CACHEWRTBUILD_SWITCH_BOOL: ${{ (github.event.inputs.CACHEWRTBUILD_SWITCH == 'true') || (github.event.client_payload.inputs.CACHEWRTBUILD_SWITCH == true) }}
+  CACHEWRTBUILD_SWITCH_BOOL: ${{ (github.event.inputs.CACHEWRTBUILD_SWITCH == 'true') || (toJSON(github.event.client_payload.inputs.CACHEWRTBUILD_SWITCH) == 'true') || (github.event.inputs.CACHEWRTBUILD_SWITCH == true) || (toJSON(github.event.client_payload.inputs.CACHEWRTBUILD_SWITCH) == true) }}
   CLEAN_BUILD_BOOL: ${{ (github.event.inputs.CLEAN_BUILD == 'true') || (github.event.client_payload.inputs.CLEAN_BUILD == true) }}
   # 上传配置
   UPLOAD_BIN_DIR: false
@@ -92,6 +92,10 @@ env:
   DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
   CONTAINER_RAW_SRC_DIR: /opt/openwrt
   GITHUB_RUN_NUMBER: ${{ github.run_number }}
+  # 新增缓存相关变量
+  CCACHE_DIR: ${{ github.workspace }}/openwrt/.ccache
+  CCACHE_SIZE: 10G
+  CCACHE_COMPRESSION_LEVEL: 6
 
 jobs:
   build:
@@ -123,28 +127,6 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        echo "编译类型: ${{ github.event.inputs.build_type }}"
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          echo "执行脚本编译固件函数"
-          compile_status="$(source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1)"
-          echo "编译状态: $compile_status"
-        else
-          compile_status="$(docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1')"
-        fi
-        return_value="$(echo "$compile_status" | tail -n 1)"
-        echo "返回内容: $compile_status"
-        echo "编译状态: $return_value"
-        echo "status=$return_value" >> $GITHUB_OUTPUT
-        if [[ "$return_value" != "1" ]]; then
-          echo "编译失败，退出工作流"
-        fi
-        grep '^CONFIG_TARGET.*DEVICE.*=y' "$SOURCE_DIR/.config" | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV || echo "DEVICE_NAME=_${TARGET_DEVICE}" >> $GITHUB_ENV
-        FILE_DATE="_$(date +"%Y%m%d%H%M")"
-        echo "FILE_DATE=${FILE_DATE}" >> GITHUB_ENV
-        echo "输出环境变量"
-        cat GITHUB_ENV
-
         cd "${{ env.WORK_DIR }}"
         source ${{ env.WORK_DIR }}/build-openwrt.sh
         init_env
@@ -164,9 +146,6 @@ jobs:
         esac
         echo -e "${Color}${2}\033[0m"
         }
-        sudo mkdir -p "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}"
-        sudo chown -R $USER:$GROUPS "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}"
-        sudo chmod -R 777 "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}"
         echo_color z "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
         FILTERED_TAGS=$(skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | \
         grep -oE '"(ubuntu22.04|latest|[0-9]{12})"' | \
@@ -188,11 +167,15 @@ jobs:
         done <<< "$(printenv)"
         echo_color l "环境变量打包完成"
         docker pull "${{ env.DOCKER_IMAGE }}"
+        
+        mkdir -p "$CCACHE_DIR"
+        
         docker run -d --name builder \
           --env-file .env \
           -v "$PWD":"${{ env.WORK_DIR }}":rw \
           -e TZ="${{ env.TZ }}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
+          -e CCACHE_DIR="${{ env.CCACHE_DIR }}" \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
         echo_color z -e "\n=== 验证容器运行状态 ==="
         docker ps -a | grep builder
@@ -202,6 +185,10 @@ jobs:
           exit 1
         fi
         echo_color g "✅ 容器运行正常"
+        
+        # 修复ccache权限
+        docker exec builder chmod -R 777 "$CCACHE_DIR"
+        
         echo -e "\n=== 迁移预置源码到共享目录 ==="
         docker exec builder bash -c '
           echo_color() {
@@ -255,6 +242,14 @@ jobs:
       run: |
         source ${{ env.WORK_DIR }}/build-openwrt.sh
         prepare_source
+
+    - name: 提取缓存相关变量
+      run: |
+        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && extract_cache_variables
+        else
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && extract_cache_variables'
+        fi
 
     - name: 加载自定义feeds
       run: |
@@ -331,22 +326,25 @@ jobs:
        
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH_BOOL && !env.CLEAN_BUILD_BOOL
-      uses: stupidloud/cachewrtbuild@main
+      uses: actions/cache@main
       with:
-        ccache: 'true'
-        mixkey: "${{ env.REPO_BRANCH }}-${{ env.TARGET_DEVICE }}-${{ hashFiles('diy-*.sh') }}-${{ hashFiles('.config') }}"
-        prefix: ${{ env.SOURCE_DIR }}
-    
-    - name: 缓存Docker模式依赖
-      if: env.BUILD_TYPE == 'Docker' && env.CACHEWRTBUILD_SWITCH_BOOL && !env.CLEAN_BUILD_BOOL
-      uses: actions/cache@v3
-      with:
+        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.HASH }}-${{ hashFiles('.config', 'diy-*.sh') }}
+        restore-keys: |
+          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.HASH }}-
+          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-
         path: |
           ${{ env.SOURCE_DIR }}/.ccache
+          ${{ env.SOURCE_DIR }}/staging_dir
           ${{ env.SOURCE_DIR }}/dl
-        key: docker-cache-${{ env.REPO_BRANCH }}-${{ env.TARGET_DEVICE }}-${{ hashFiles('diy-*.sh') }}-${{ hashFiles('.config') }}
-        restore-keys: |
-          docker-cache-${{ env.REPO_BRANCH }}-${{ env.TARGET_DEVICE }}-
+
+    - name: 刷新缓存
+      if: env.CACHEWRTBUILD_SWITCH_BOOL && !env.CLEAN_BUILD_BOOL
+      run: |
+        if [ -d "${{ env.SOURCE_DIR }}/staging_dir" ]; then
+          find "${{ env.SOURCE_DIR }}/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
+              find "$dir" -type f -exec touch {} +
+          done
+        fi
 
     - name: 下载软件包
       id: package
@@ -379,20 +377,19 @@ jobs:
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
           compile_status="$(source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1)"
+          compile_exit_code=$?
         else
           compile_status="$(docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1')"
+          compile_exit_code=$?
         fi
-        return_value="$(echo "$compile_status" | tail -n 1)"
-        echo "返回内容: $compile_status"
-        echo "编译状态: $return_value"
-        echo "status=$return_value" >> $GITHUB_OUTPUT
-        if [[ "$return_value" != "success" ]]; then
+        if [[ $compile_exit_code -ne 0 ]]; then
           exit 1
         fi
+        echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' "$SOURCE_DIR/.config" | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV || echo "DEVICE_NAME=_${TARGET_DEVICE}" >> $GITHUB_ENV
         FILE_DATE="_$(date +"%Y%m%d%H%M")"
-        echo "FILE_DATE=${FILE_DATE}" >> GITHUB_ENV
+        echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
 
     - name: 检查编译后磁盘空间
       if: (!cancelled())
@@ -400,6 +397,38 @@ jobs:
         echo "===== 磁盘空间 ====="
         echo -e "\033[0;35m 系统空间      类型   总数  已用  可用 使用率\033[0m"
         df -hT "$PWD"
+    - name: 清理旧缓存
+      if: env.CACHEWRTBUILD_SWITCH_BOOL && !env.CLEAN_BUILD_BOOL
+      run: |
+        # 获取缓存列表并删除旧缓存（保留最新的2个）
+        echo "正在获取缓存列表..."
+        CACHE_LIST=$(gh cache list --key ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}- --json key,createdAt --jq '. | sort_by(.createdAt) | reverse | .[2:] | .[] | .key')
+        
+        if [ -n "$CACHE_LIST" ]; then
+          echo "准备删除以下旧缓存："
+          echo "$CACHE_LIST"
+          echo "$CACHE_LIST" | while read -r key; do
+            echo "删除缓存: $key"
+            gh cache delete "$key"
+          done
+        else
+          echo "没有需要删除的旧缓存"
+        fi
+        
+        # 输出缓存状态
+        echo "======== 缓存状态 ========"
+        if [ -d "${{ env.SOURCE_DIR }}/.ccache" ]; then
+          echo "ccache: $(du -sh ${{ env.SOURCE_DIR }}/.ccache | cut -f 1)"
+        else
+          echo "ccache: 未使用"
+        fi
+        if [ -d "${{ env.SOURCE_DIR }}/staging_dir" ]; then
+          echo "staging: $(du -sh ${{ env.SOURCE_DIR }}/staging_dir | cut -f 1)"
+        else
+          echo "staging: 未使用"
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 上传bin目录
       uses: actions/upload-artifact@v4
