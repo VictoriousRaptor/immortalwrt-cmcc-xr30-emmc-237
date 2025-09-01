@@ -214,7 +214,33 @@ jobs:
           fi
           echo "✅ Git仓库初始化完成"
         '
-        
+    - name: 提取已选插件列表
+      id: extract_plugins2
+      run: |
+        echo_color() {
+        case "$1" in
+            r) local Color="\033[0;31m";; # 红色
+            g) local Color="\033[0;32m";; # 绿色
+            y) local Color="\033[0;33m";; # 黄色
+            b) local Color="\033[0;34m";; # 蓝色
+            z) local Color="\033[0;35m";; # 紫色
+            l) local Color="\033[0;36m";; # 青色
+            *) local Color="\033[0;0m";;  # 默认色
+        esac
+        echo -e "${Color}[$(date +'%m-%d %H:%M:%S')] ${2}\033[0m"
+        }
+        echo_color z "开始提取已选插件列表..."
+        local plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
+          awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
+        [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
+        {
+          echo "plugins_list<<EOF"
+          echo "$plugins"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+        echo_color g "已选插件列表提取完成："
+        echo -e "$plugins"
+
     - name: 克隆源码（主机模式）
       if: env.BUILD_TYPE == 'Host'
       run: |
@@ -298,11 +324,29 @@ jobs:
     - name: 提取已选插件列表
       id: extract_plugins
       run: |
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh && extract_plugins
-        else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && extract_plugins'
-        fi
+        echo_color() {
+        case "$1" in
+            r) local Color="\033[0;31m";; # 红色
+            g) local Color="\033[0;32m";; # 绿色
+            y) local Color="\033[0;33m";; # 黄色
+            b) local Color="\033[0;34m";; # 蓝色
+            z) local Color="\033[0;35m";; # 紫色
+            l) local Color="\033[0;36m";; # 青色
+            *) local Color="\033[0;0m";;  # 默认色
+        esac
+        echo -e "${Color}[$(date +'%m-%d %H:%M:%S')] ${2}\033[0m"
+        }
+        echo_color z "开始提取已选插件列表..."
+        local plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
+          awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
+        [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
+        {
+          echo "plugins_list<<EOF"
+          echo "$plugins"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+        echo_color g "已选插件列表提取完成："
+        echo -e "$plugins"
         
     - name: 释放Ubuntu磁盘空间
       uses: danshui-git/free-disk-space@main
@@ -318,7 +362,8 @@ jobs:
     - name: 查看清理后磁盘空间
       run: |
         echo "===== 磁盘空间 ====="
-        df -h
+        echo -e "\033[0;35m 系统空间      类型   总数  已用  可用 使用率\033[0m"
+        df -hT "$PWD"
         
     - name: 编译固件
       id: compile
@@ -364,7 +409,8 @@ jobs:
       if: (!cancelled())
       run: |
         echo "===== 磁盘空间 ====="
-        df -hT
+        echo -e "\033[0;35m 系统空间      类型   总数  已用  可用 使用率\033[0m"
+        df -hT "$PWD"
 
     - name: 上传bin目录
       uses: actions/upload-artifact@v4
@@ -429,7 +475,7 @@ jobs:
         - 主机名：${{ github.event.inputs.hostname }}
         
         #### 已选插件列表
-        ${{ steps.extract_plugins.outputs.plugins_list }}
+        ${{ steps.extract_plugins.outputs.plugins }}
         
         #### 编译信息
         - 编译方式：${{ github.event.inputs.build_type }}

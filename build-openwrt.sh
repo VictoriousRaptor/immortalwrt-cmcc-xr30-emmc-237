@@ -37,28 +37,27 @@ return 1
 # 功能: 规范化设置和展开所有必要的环境变量
 # ======================================================
 init_global_variables() {
-log_info "开始初始化全局变量..."
+echo_color b "REPO_URL 变量值: $REPO_URL"
+echo_color b "REPO_BRANCH 变量值: $REPO_BRANCH"
+echo_color b "CONFIG_FILE 变量值: $CONFIG_FILE"
+echo_color b "DIY_P1_SH 变量值: $DIY_P1_SH"
+echo_color b "DIY_P2_SH 变量值: $DIY_P2_SH"
+echo_color b "TARGET_DEVICE 变量值: $TARGET_DEVICE"
+echo_color b "TZ 变量值: $TZ"
+echo_color b "WORK_DIR 变量值: $WORK_DIR"
+echo_color b "SOURCE_DIR 变量值: $SOURCE_DIR"
+echo_color b "CONTAINER_OUTPUT_DIR 变量值: $CONTAINER_OUTPUT_DIR"
+echo_color b "DOCKER_IMAGE 变量值: $DOCKER_IMAGE"
+echo_color b "CONTAINER_RAW_SRC_DIR 变量值: $CONTAINER_RAW_SRC_DIR"
+echo_color b "DEFAULT_THEME 变量值: $DEFAULT_THEME"
+echo_color b "HOSTNAME 变量值: $HOSTNAME"
+echo_color b "LAN_IP 变量值: $LAN_IP"
+echo_color b "GITHUB_RUN_NUMBER 变量值: $GITHUB_RUN_NUMBER"
+echo_color b "TMP_OUTPUT_DIR 变量值: $TMP_OUTPUT_DIR"
+echo_color b "HIGH_POWER_5G 变量值: $HIGH_POWER_5G"
 
 # 定义变量映射表，方便统一管理
 local var_map=("REPO_URL" "REPO_BRANCH" "CONFIG_FILE" "DIY_P1_SH" "DIY_P2_SH" "TARGET_DEVICE" "TZ" "WORK_DIR" "SOURCE_DIR" "CONTAINER_OUTPUT_DIR" "DOCKER_IMAGE" "CONTAINER_RAW_SRC_DIR" "DEFAULT_THEME" "HOSTNAME" "LAN_IP" "GITHUB_RUN_NUMBER" "TMP_OUTPUT_DIR" "HIGH_POWER_5G")
-
-# 遍历所有需要处理的变量
-for var_name in "${var_map[@]}"; do
-    local current_value="${!var_name}"
-    
-    if [[ -n "$current_value" ]]; then
-        if [[ "$current_value" == *"$"* ]]; then
-            local expanded_value="$(eval echo "$current_value")"
-            
-            export "$var_name"="$expanded_value"
-            log_info "✅ $var_name 已展开并设置: $expanded_value"
-        else
-            log_info "✅ $var_name 已设置: $current_value"
-        fi
-    else
-        log_info "⚠️ $var_name 未设置"
-    fi
-done
 }
 
 # ======================================================
@@ -394,46 +393,6 @@ log_info "软件包下载完成！"
 }
 
 # ======================================================
-# 提取已选插件列表
-# 功能: 从.config文件提取已选择的LuCI插件列表
-# ======================================================
-extract_plugins() {
-
-log_info "开始提取已选插件列表..."
-
-# 检查源码目录
-if [ ! -d "$SOURCE_DIR" ]; then
-    log_error "源码目录 $SOURCE_DIR 不存在！"
-    return 1
-fi
-
-mkdir -p "$WORK_DIR/tmp" || log_error "创建临时目录失败"
-
-# 提取插件列表
-cd "$SOURCE_DIR"
-counter=1
-while read -r pkg; do
-    package_name="${pkg#CONFIG_PACKAGE_}"
-    package_name="${package_name%=y}"
-    echo "         $counter、$package_name"
-    counter=$((counter + 1))
-done < <(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE") > $WORK_DIR/tmp/CONFIG_PACKAGE.txt
-
-# 设置GitHub输出变量
-PLUGINS_LIST=$(cat $WORK_DIR/tmp/CONFIG_PACKAGE.txt)
-[ -z "${PLUGINS_LIST}" ] && PLUGINS_LIST="无额外插件（仅基础系统）"
-
-if [ -n "$TMP_OUTPUT_DIR" ]; then
-    echo "plugins_list<<EOF" >> "${TMP_OUTPUT_DIR}"
-    echo "$PLUGINS_LIST" >> "${TMP_OUTPUT_DIR}"
-    echo "EOF" >> "${TMP_OUTPUT_DIR}"
-fi
-
-log_info "已选插件列表提取完成："
-echo -e "$PLUGINS_LIST"
-}
-
-# ======================================================
 # 编译固件
 # 功能: 使用多线程编译OpenWrt固件
 # ======================================================
@@ -444,13 +403,13 @@ log_info "开始编译固件（使用$(nproc)线程）..."
 # 编译固件，带错误处理
 cd "$SOURCE_DIR"
 if make -j$(nproc) || make -j1 || make -j1 V=s; then
-    echo "status=success" >> "${TMP_OUTPUT_DIR}"
+    STATUS_FILE="${TMP_OUTPUT_DIR}/STATUS"
+    FILE_DATE_FILE="${TMP_OUTPUT_DIR}/FILE_DATE"
+    DEVICE_NAME_FILE="${TMP_OUTPUT_DIR}/DEVICE_NAME"
+    echo "status=success" >> "${TMP_OUTPUT_DIR}/STATUS2"
     grep '^CONFIG_TARGET.*DEVICE.*=y' "$SOURCE_DIR/.config" | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-    [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $TMP_OUTPUT_DIR || echo "DEVICE_NAME=_${TARGET_DEVICE}" >> $TMP_OUTPUT_DIR  
-    # 设置文件日期
-    FILE_DATE="_$(date +"%Y%m%d%H%M")"
-    echo "FILE_DATE=${FILE_DATE}" >> "${TMP_OUTPUT_DIR}"
-    
+    [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $DEVICE_NAME_FILE || echo "DEVICE_NAME=_${TARGET_DEVICE}" >> $STATUS_FILE  
+    echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $FILE_DATE_FILE
     log_info "固件编译完成！"
 else
     log_error "固件编译失败！"
