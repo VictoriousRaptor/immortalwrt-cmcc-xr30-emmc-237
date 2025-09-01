@@ -86,8 +86,8 @@ env:
   UPLOAD_WETRANSFER: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
-  WORK_DIR: ${{ github.workspace }}/workdir
-  SOURCE_DIR: ${{ github.workspace }}/workdir/openwrt
+  WORK_DIR: ${{ github.workspace }}
+  SOURCE_DIR: ${{ github.workspace }}/openwrt
   # Docker相关配置
   DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
   CONTAINER_RAW_SRC_DIR: /opt/openwrt
@@ -123,11 +123,6 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo mkdir -p "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}"
-        sudo chown -R $USER:$GROUPS "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}"
-        sudo chmod -R 777 "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}"
-        sudo cp -r ./ "${{ env.WORK_DIR }}"
-        sudo chmod +x ${{ env.WORK_DIR }}/build-openwrt.sh ${{ env.WORK_DIR }}/diy-part1.sh ${{ env.WORK_DIR }}/diy-part2.sh
         cd "${{ env.WORK_DIR }}"
         source ${{ env.WORK_DIR }}/build-openwrt.sh
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
