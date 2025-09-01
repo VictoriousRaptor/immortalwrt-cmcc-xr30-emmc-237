@@ -40,7 +40,7 @@ log_info "开始初始化编译环境..."
 
 # 更新系统并安装依赖
 sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
-sudo -E apt-get -qq update || log_error "apt更新失败"
+sudo -E apt-get -qq update
 sudo -E apt-get -qq install \
     ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison \
     build-essential bzip2 ccache cmake cpio curl device-tree-compiler \
@@ -54,15 +54,15 @@ sudo -E apt-get -qq install \
     vim wget xmlto xxd zlib1g-dev
 
 # 清理系统
-sudo -E apt-get -qq autoremove --purge || true
-sudo -E apt-get -qq clean || true
+sudo -E apt-get -qq autoremove --purge
+sudo -E apt-get -qq clean
 
 # 设置时区
-sudo timedatectl set-timezone "$TZ" || log_error "设置时区失败"
+sudo timedatectl set-timezone "$TZ"
 
 # 设置工作目录权限
-sudo mkdir -p "$WORK_DIR" "$SOURCE_DIR" || true
-sudo chown -R $USER:$GROUPS "$WORK_DIR" || log_error "设置工作目录权限失败"
+sudo mkdir -p "$WORK_DIR" "$SOURCE_DIR"
+sudo chown -R $USER:$GROUPS "$WORK_DIR"
 
 log_info "编译环境初始化完成！"
 log_info "工作目录：$WORK_DIR"
@@ -365,27 +365,15 @@ log_info "软件包下载完成！"
 
 # ======================================================
 # 编译固件
-# 功能: 使用多线程编译OpenWrt固件
+# 功能: 使用多线程编译OpenWrt固件，仅返回编译结果状态码
+# 返回值: 0表示成功，1表示失败
 # ======================================================
 compile_firmware() {
+    log_info "开始编译固件（使用$(nproc)线程）..."
 
-log_info "开始编译固件（使用$(nproc)线程）..."
-
-# 编译固件，带错误处理
-cd "$SOURCE_DIR"
-if make -j$(nproc) || make -j1 || make -j1 V=s; then
-    STATUS_FILE="${TMP_OUTPUT_DIR}/STATUS"
-    FILE_DATE_FILE="${TMP_OUTPUT_DIR}/FILE_DATE"
-    DEVICE_NAME_FILE="${TMP_OUTPUT_DIR}/DEVICE_NAME"
-    echo "status=success" >> "${TMP_OUTPUT_DIR}/STATUS2"
-    grep '^CONFIG_TARGET.*DEVICE.*=y' "$SOURCE_DIR/.config" | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-    [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $DEVICE_NAME_FILE || echo "DEVICE_NAME=_${TARGET_DEVICE}" >> $STATUS_FILE  
-    echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $FILE_DATE_FILE
-    log_info "固件编译完成！"
-else
     log_error "固件编译失败！"
     return 1
-fi
+ 
 }
 
 # ======================================================
