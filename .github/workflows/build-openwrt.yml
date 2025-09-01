@@ -118,11 +118,12 @@ jobs:
         sudo cp -r ./ "${{ env.WORK_DIR }}"
         sudo chmod +x ${{ env.WORK_DIR }}/build-openwrt.sh ${{ env.WORK_DIR }}/diy-part1.sh ${{ env.WORK_DIR }}/diy-part2.sh
         cd "${{ env.WORK_DIR }}"
+        source ${{ env.WORK_DIR }}/build-openwrt.sh
+        init_env
 
-        while IFS='=' read -r var value; do
-          echo "$var=\"$value\"" >> .env
-        done <<< "$(printenv)"
-        cat .env
+    - name: 启动Docker容器（Docker模式）
+      if: env.BUILD_TYPE == 'Docker'
+      run: |
         echo_color() {
         case "$1" in
             r) local Color="\033[0;31m";; # 红色
@@ -133,31 +134,12 @@ jobs:
             l) local Color="\033[0;36m";; # 青色
             *) local Color="\033[0;0m";;  # 默认色
         esac
-        echo -e "${Color}[$(date +'%m-%d %H:%M:%S')] ${2}\033[0m"
+        echo -e "${Color}${2}\033[0m"
         }
-        echo_color z "开始提取已选插件列表..."
-        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
-          awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
-        [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
-        {
-          echo "plugins_list<<EOF"
-          echo "$plugins"
-          echo "EOF"
-        } >> "$GITHUB_OUTPUT"
-        echo_color g "已选插件列表提取完成："
-        echo -e "$plugins"
-
-        source ${{ env.WORK_DIR }}/build-openwrt.sh
-        init_global_variables
-        init_env
-
-    - name: 启动Docker容器（Docker模式）
-      if: env.BUILD_TYPE == 'Docker'
-      run: |
         sudo mkdir -p "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
         sudo chown -R $USER:$GROUPS "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
         sudo chmod -R 777 "${{ env.WORK_DIR }}" "${{ env.SOURCE_DIR }}" "${{ env.TMP_OUTPUT_DIR }}"
-        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        echo_color z "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
         FILTERED_TAGS=$(skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | \
         grep -oE '"(ubuntu22.04|latest|[0-9]{12})"' | \
         tr -d '"' | \
@@ -169,67 +151,64 @@ jobs:
             print $1 \
           } \
         }')
-        echo "本次镜像的标签："
-        echo "$FILTERED_TAGS"
-        echo "-----------------"
+        echo_color b "本次镜像的标签："
+        echo_color g "$FILTERED_TAGS"
+        echo_color b "-----------------"
+        echo_color l "开始打包环境变量到容器"
+        while IFS='=' read -r var value; do
+          echo "$var=\"$value\"" >> .env
+        done <<< "$(printenv)"
+        echo_color l "环境变量打包完成"
         docker pull "${{ env.DOCKER_IMAGE }}"
         docker run -d --name builder \
+          --env-file .env \
           -v "$PWD":"${{ env.WORK_DIR }}" \
           -v "${{ env.TMP_OUTPUT_DIR }}":"${{ env.TMP_OUTPUT_DIR }}":rw \
           -e TZ="${{ env.TZ }}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
-          -e REPO_URL="${{ env.REPO_URL }}" \
-          -e REPO_BRANCH="${{ env.REPO_BRANCH }}" \
-          -e CONFIG_FILE="${{ env.CONFIG_FILE }}" \
-          -e DIY_P1_SH="${{ env.DIY_P1_SH }}" \
-          -e DIY_P2_SH="${{ env.DIY_P2_SH }}" \
-          -e TARGET_DEVICE="${{ env.TARGET_DEVICE }}" \
-          -e WORK_DIR="${{ env.WORK_DIR }}" \
-          -e SOURCE_DIR="${{ env.SOURCE_DIR }}" \
-          -e CONTAINER_OUTPUT_DIR="${{ env.CONTAINER_OUTPUT_DIR }}" \
-          -e DOCKER_IMAGE="${{ env.DOCKER_IMAGE }}" \
-          -e CONTAINER_RAW_SRC_DIR="${{ env.CONTAINER_RAW_SRC_DIR }}" \
-          -e DEFAULT_THEME="${{ env.DEFAULT_THEME }}" \
-          -e HOSTNAME="${{ env.HOSTNAME }}" \
-          -e LAN_IP="${{ env.LAN_IP }}" \
-          -e HIGH_POWER_5G="${{ env.HIGH_POWER_5G }}" \
-          -e GITHUB_RUN_NUMBER="${{ github.run_number }}" \
-          -e TMP_OUTPUT_DIR="${{ env.TMP_OUTPUT_DIR }}" \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
-        echo -e "\n=== 验证容器运行状态 ==="
+        echo_color z -e "\n=== 验证容器运行状态 ==="
         docker ps -a | grep builder
         if [ $? -ne 0 ]; then
-          echo "❌ 容器启动失败，请查看日志："
+          echo_color r "❌ 容器启动失败，请查看日志："
           docker logs builder
           exit 1
         fi
-        echo "✅ 容器运行正常"
-        docker exec builder bash -c '
-          source $WORK_DIR/build-openwrt.sh && init_global_variables
-        '
-        
+        echo_color g "✅ 容器运行正常"
         echo -e "\n=== 迁移预置源码到共享目录 ==="
         docker exec builder bash -c '
+          echo_color() {
+          case "$1" in
+              r) local Color="\033[0;31m";; # 红色
+              g) local Color="\033[0;32m";; # 绿色
+              y) local Color="\033[0;33m";; # 黄色
+              b) local Color="\033[0;34m";; # 蓝色
+              z) local Color="\033[0;35m";; # 紫色
+              l) local Color="\033[0;36m";; # 青色
+              *) local Color="\033[0;0m";;  # 默认色
+          esac
+          echo -e "${Color}${2}\033[0m"
+          }
           if [ -d "$SOURCE_DIR" ]; then
-            echo "⚠️ 清理共享目录旧内容：""$SOURCE_DIR"
+            echo_color y "⚠️ 清理共享目录旧内容：""$SOURCE_DIR"
             rm -rf "$SOURCE_DIR"/* "$SOURCE_DIR"/.* 2>/dev/null
           else
             mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
           fi
-          echo "开始复制源码（含隐藏文件）..."
+          echo_color l "开始复制源码（含隐藏文件）..."
           cp -a "$CONTAINER_RAW_SRC_DIR"/. "$SOURCE_DIR"
           critical_files=("scripts/feeds" "target/linux" "package")
           for file in "${critical_files[@]}"; do
             check_path="$SOURCE_DIR/$file"
             if [ ! -e "$check_path" ]; then
-              echo "❌ 迁移失败：共享目录缺失关键文件 $check_path"
+              echo_color r "❌ 迁移失败：共享目录缺失关键文件 $check_path"
               exit 1
             fi
           done
-          echo "✅ 预置源码迁移完成"
-          echo "  - 从：$CONTAINER_RAW_SRC_DIR"
-          echo "  - 到：""$SOURCE_DIR"
-          echo "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
+          echo_color g "✅ 预置源码迁移完成"
+          echo_color l "  - 从：$CONTAINER_RAW_SRC_DIR"
+          echo_color l "  - 到：""$SOURCE_DIR"
+          echo_color l "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
           cd "$SOURCE_DIR"
           if [ ! -d .git ]; then
               git init && \
@@ -241,7 +220,7 @@ jobs:
               git fetch --all && \
               git reset --hard HEAD
           fi
-          echo "✅ Git仓库初始化完成"
+          echo_color g "✅ Git仓库初始化完成"
         '
 
     - name: 克隆源码（主机模式）
@@ -340,7 +319,7 @@ jobs:
         echo -e "${Color}[$(date +'%m-%d %H:%M:%S')] ${2}\033[0m"
         }
         echo_color z "开始提取已选插件列表..."
-        local plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
           awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
         {

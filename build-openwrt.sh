@@ -31,35 +31,6 @@ return 1
 }
 
 
-
-# ======================================================
-# 初始化全局变量函数
-# 功能: 规范化设置和展开所有必要的环境变量
-# ======================================================
-init_global_variables() {
-echo_color b "REPO_URL 变量值: $REPO_URL"
-echo_color b "REPO_BRANCH 变量值: $REPO_BRANCH"
-echo_color b "CONFIG_FILE 变量值: $CONFIG_FILE"
-echo_color b "DIY_P1_SH 变量值: $DIY_P1_SH"
-echo_color b "DIY_P2_SH 变量值: $DIY_P2_SH"
-echo_color b "TARGET_DEVICE 变量值: $TARGET_DEVICE"
-echo_color b "TZ 变量值: $TZ"
-echo_color b "WORK_DIR 变量值: $WORK_DIR"
-echo_color b "SOURCE_DIR 变量值: $SOURCE_DIR"
-echo_color b "CONTAINER_OUTPUT_DIR 变量值: $CONTAINER_OUTPUT_DIR"
-echo_color b "DOCKER_IMAGE 变量值: $DOCKER_IMAGE"
-echo_color b "CONTAINER_RAW_SRC_DIR 变量值: $CONTAINER_RAW_SRC_DIR"
-echo_color b "DEFAULT_THEME 变量值: $DEFAULT_THEME"
-echo_color b "HOSTNAME 变量值: $HOSTNAME"
-echo_color b "LAN_IP 变量值: $LAN_IP"
-echo_color b "GITHUB_RUN_NUMBER 变量值: $GITHUB_RUN_NUMBER"
-echo_color b "TMP_OUTPUT_DIR 变量值: $TMP_OUTPUT_DIR"
-echo_color b "HIGH_POWER_5G 变量值: $HIGH_POWER_5G"
-
-# 定义变量映射表，方便统一管理
-local var_map=("REPO_URL" "REPO_BRANCH" "CONFIG_FILE" "DIY_P1_SH" "DIY_P2_SH" "TARGET_DEVICE" "TZ" "WORK_DIR" "SOURCE_DIR" "CONTAINER_OUTPUT_DIR" "DOCKER_IMAGE" "CONTAINER_RAW_SRC_DIR" "DEFAULT_THEME" "HOSTNAME" "LAN_IP" "GITHUB_RUN_NUMBER" "TMP_OUTPUT_DIR" "HIGH_POWER_5G")
-}
-
 # ======================================================
 # 初始化环境函数（仅主机编译使用）
 # 功能: 安装编译依赖、设置时区、创建工作目录
@@ -422,7 +393,7 @@ fi
 # ======================================================
 export -f log_info log_error init_env prepare_source \
 load_custom_feeds update_install_feeds load_custom_config sync_config \
-download_packages compile_firmware init_global_variables
+download_packages compile_firmware
 
 # ======================================================
 # 主函数（如果直接运行脚本时使用）
