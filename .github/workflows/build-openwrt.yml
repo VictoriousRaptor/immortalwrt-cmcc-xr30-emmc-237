@@ -123,6 +123,7 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
+        echo "编译类型: ${{ github.event.inputs.build_type }}"
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
           compile_status="$(source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1)"
         else
@@ -142,7 +143,7 @@ jobs:
         echo "FILE_DATE=${FILE_DATE}" >> GITHUB_ENV
         echo "输出环境变量"
         cat GITHUB_ENV
-        
+
         cd "${{ env.WORK_DIR }}"
         source ${{ env.WORK_DIR }}/build-openwrt.sh
         init_env
