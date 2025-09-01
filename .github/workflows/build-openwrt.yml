@@ -119,8 +119,6 @@ jobs:
     
     - name: 检查代码
       uses: actions/checkout@main
-      with:
-        fetch-depth: 1
 
     - name: 初始化编译环境（主机模式）
       if: env.BUILD_TYPE == 'Host'
