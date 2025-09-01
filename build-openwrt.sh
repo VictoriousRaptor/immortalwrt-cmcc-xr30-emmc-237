@@ -61,7 +61,7 @@ sudo -E apt-get -qq clean
 sudo timedatectl set-timezone "$TZ"
 
 # 设置工作目录权限
-sudo mkdir -p "$WORK_DIR" "$SOURCE_DIR"
+sudo mkdir -p "$WORK_DIR"
 sudo chown -R $USER:$GROUPS "$WORK_DIR"
 
 log_info "编译环境初始化完成！"
@@ -115,7 +115,7 @@ prepare_source() {
 local min_src_size_mb=${1:-150}
 
 log_info "开始准备源码..."
-
+sudo mkdir -p "$SOURCE_DIR"
 # 获取远程源码哈希
 log_info "获取远程源码哈希：$REPO_URL ($REPO_BRANCH)"
 REMOTE_COMMIT=$(git ls-remote $REPO_URL $REPO_BRANCH | awk '{print $1}')
