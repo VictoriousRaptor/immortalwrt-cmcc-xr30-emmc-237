@@ -14,7 +14,7 @@
 - 编译其他型号
    - 1.替换.config配置文件或更改其相关型号内容
    - 2.通过‘make menuconfig’选择对应型号
-#### `特别提示：编译其他型号时，需要将build-openwrt.yml文件中对TARGET_DEVICE修改为对应的型号`
+#### 特别提示：编译其他型号时，需到`.github\workflows`目录下的`build-openwrt.yml`文件中`TARGET_DEVICE`中的`cmcc_rax3000m-emmc`修改为对应的型号
 ## 特性
 
 - **自动化编译**：使用GitHub Actions实现自动构建流程
