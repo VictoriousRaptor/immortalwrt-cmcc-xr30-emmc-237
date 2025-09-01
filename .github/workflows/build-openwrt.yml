@@ -125,7 +125,9 @@ jobs:
       run: |
         echo "编译类型: ${{ github.event.inputs.build_type }}"
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+          echo "执行脚本编译固件函数"
           compile_status="$(source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1)"
+          echo "编译状态: $compile_status"
         else
           compile_status="$(docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1')"
         fi
