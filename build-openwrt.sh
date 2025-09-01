@@ -422,7 +422,7 @@ fi
 # ======================================================
 export -f log_info log_error init_env prepare_source \
 load_custom_feeds update_install_feeds load_custom_config sync_config \
-download_packages extract_plugins compile_firmware init_global_variables
+download_packages compile_firmware init_global_variables
 
 # ======================================================
 # 主函数（如果直接运行脚本时使用）
