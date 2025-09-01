@@ -130,6 +130,8 @@
 4. 等待刷机完成并自动重启
 
 ## 项目结构
+
+```
 ├── .config              # OpenWrt编译配置文件
 ├── .github/workflows/   # GitHub Actions工作流配置
 │   ├── build-image.yml  # 构建镜像工作流
@@ -140,7 +142,7 @@
 ├── diy-part1.sh         # 自定义脚本（更新feeds前）
 ├── diy-part2.sh         # 自定义脚本（更新feeds后）
 └── README.md            # 项目说明文档
-
+```
 ## 引用项目
 
 - [P3TERX/Actions-OpenWrt](https://github.com/P3TERX/Actions-OpenWrt) - GitHub Actions在线编译模板
