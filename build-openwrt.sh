@@ -370,7 +370,6 @@ log_info "软件包下载完成！"
 # ======================================================
 compile_firmware() {
     log_info "开始编译固件（使用$(nproc)线程）..."
-    
     cd "$SOURCE_DIR"
     log_error "固件编译失败！"
     return "failure"

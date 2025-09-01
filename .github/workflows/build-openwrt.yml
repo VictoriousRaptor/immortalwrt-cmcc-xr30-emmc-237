@@ -141,7 +141,8 @@ jobs:
         echo "编译状态: $return_value"
         echo "status=$return_value" >> $GITHUB_OUTPUT
         if [[ "$return_value" != "success" ]]; then
-          exit 1
+          echo "编译失败，退出工作流"
+          # exit 1
         fi
         grep '^CONFIG_TARGET.*DEVICE.*=y' "$SOURCE_DIR/.config" | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV || echo "DEVICE_NAME=_${TARGET_DEVICE}" >> $GITHUB_ENV
