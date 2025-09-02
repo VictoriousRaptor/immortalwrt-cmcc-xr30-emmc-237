@@ -65,38 +65,6 @@ log_info "工作目录：$WORK_DIR"
 }
 
 # ======================================================
-# 提取缓存相关变量（主机和Docker模式共用）
-# 功能: 提取用于缓存键的相关变量，如源码哈希、设备目标等
-# ======================================================
-extract_cache_variables() {
-log_info "开始提取缓存相关变量..."
-cd "$SOURCE_DIR"
-if ! git config --get user.email > /dev/null; then
-    git config --global user.email "actions@github.com"
-    git config --global user.name "GitHub Actions"
-fi
-# 获取最后提交的哈希值
-HASH=$(git log -1 --pretty=format:'%h')
-echo "HASH=$HASH" >> "$GITHUB_ENV"
-# 提取设备目标信息
-DEVICE_TARGET=$(grep -oP 'CONFIG_TARGET_BOARD=\K.*' .config || echo "unknown")
-echo "DEVICE_TARGET=$DEVICE_TARGET" >> "$GITHUB_ENV"
-DEVICE_SUBTARGET=$(grep -oP 'CONFIG_TARGET_SUBTARGET=\K.*' .config || echo "unknown")
-echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> "$GITHUB_ENV"
-# 获取源码仓库名称
-SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}' | sed 's/\.git$//')"
-echo "SOURCE_REPO=$SOURCE_REPO" >> "$GITHUB_ENV"
-# 输出变量用于调试
-log_info "缓存变量信息："
-log_info "- SOURCE_REPO: $SOURCE_REPO"
-log_info "- REPO_BRANCH: $REPO_BRANCH"
-log_info "- DEVICE_TARGET: $DEVICE_TARGET"
-log_info "- DEVICE_SUBTARGET: $DEVICE_SUBTARGET"
-log_info "- HASH: $HASH"
-log_info "缓存相关变量提取完成！"
-}
-
-# ======================================================
 # 克隆源码函数
 # 功能: 从远程仓库克隆源码并验证完整性
 # ======================================================
@@ -148,6 +116,9 @@ if [ $SRC_SIZE_MB -lt $min_src_size_mb ]; then
 fi
 
 log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
+cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_info "已加载.config文件"
+cd "$SOURCE_DIR"
+make defconfig > /dev/null 2>&1
 }
 
 # ======================================================
@@ -156,13 +127,6 @@ log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
 # ======================================================
 load_custom_feeds() {
 log_info "开始加载自定义feeds..."
-
-# 检查源码目录
-if [ ! -d "$SOURCE_DIR" ]; then
-    log_error "源码目录 $SOURCE_DIR 不存在！"
-    return 1
-fi
-
 # 检查并替换feeds配置文件
 if [ -e "$WORK_DIR/feeds.conf.default" ]; then
     cp -f "$WORK_DIR/feeds.conf.default" "$SOURCE_DIR/feeds.conf.default" && \
@@ -172,7 +136,6 @@ if [ -e "$WORK_DIR/feeds.conf.default" ]; then
         return 1
     fi
 fi
-
 # 执行diy-part1.sh并进行错误处理
 if [ -f "$WORK_DIR/$DIY_P1_SH" ]; then
     chmod +x "$WORK_DIR/$DIY_P1_SH" && log_info "执行diy-part1.sh..."
@@ -186,7 +149,6 @@ else
     log_error "diy-part1.sh脚本不存在"
     return 1
 fi
-
 log_info "加载自定义feeds完成！"
 }
 
@@ -221,23 +183,10 @@ log_info "feeds安装完成！"
 load_custom_config() {
 
 log_info "开始加载自定义配置..."
-
-# 检查源码目录
-if [ ! -d "$SOURCE_DIR" ]; then
-    log_error "源码目录 $SOURCE_DIR 不存在！"
-    return 1
-fi
-
 # 复制files目录
 if [ -d "$WORK_DIR/files" ]; then
     cp -r "$WORK_DIR/files" "$SOURCE_DIR/files" && log_info "已复制自定义files目录"
 fi
-
-# 复制.config文件
-if [ -e "$WORK_DIR/$CONFIG_FILE" ]; then
-    cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_info "已加载.config文件"
-fi
-
 # 执行diy-part2.sh并进行错误处理
 if [ -f "$WORK_DIR/$DIY_P2_SH" ]; then
     log_info "执行diy-part2.sh..."
@@ -252,34 +201,28 @@ else
     log_error "diy-part2.sh脚本不存在"
     return 1
 fi
-
 # 检查配置文件是否存在
 if [ ! -f "$SOURCE_DIR/.config" ]; then
     log_error "未找到配置文件 .config，终止编译！"
     return 1
 fi
-
 log_info "配置文件总行数: $(wc -l "$SOURCE_DIR/.config" | awk '{print $1}')"
-
 # 设置用户输入的参数
 if [ -n "$LAN_IP" ]; then
     log_info "设置LAN IP地址为: $LAN_IP"
     sed -i "s/192\.168\.[0-9]*\.[0-9]*/${LAN_IP}/g" $(find "$SOURCE_DIR/feeds/luci/modules/luci-mod-system" -type f -name 'flash.js')
     sed -i "s/192\.168\.[0-9]*\.[0-9]*/${LAN_IP}/g" "$SOURCE_DIR/package/base-files/files/bin/config_generate"
 fi
-
 if [ -n "$DEFAULT_THEME" ]; then
     log_info "设置默认主题为: $DEFAULT_THEME"
     sed -i "s/luci-theme-bootstrap/luci-theme-${DEFAULT_THEME}/g" "$SOURCE_DIR/feeds/luci/collections/luci/Makefile"
 fi
-
 if [ -n "$HOSTNAME" ]; then
     log_info "设置默认主机名为: $HOSTNAME"
     sed -i "s/set system.@system\[-1\].hostname='ImmortalWrt'/set system.@system[-1].hostname='${HOSTNAME}'/g" "$SOURCE_DIR/package/base-files/files/bin/config_generate"
     sed -i "s/'hostname:string:OpenWrt'/'hostname:string:${HOSTNAME}'/g" "$SOURCE_DIR/package/base-files/files/etc/init.d/system"
     sed -i "s/echo OpenWrt-failsafe/echo ${HOSTNAME}-failsafe/g" "$SOURCE_DIR/package/base-files/files/lib/preinit/10_indicate_failsafe"
 fi
-
 if [ "$HIGH_POWER_5G" = "true" ]; then
     log_info "设置5G高功率25db"
     rm -f $SOURCE_DIR/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p
@@ -313,54 +256,7 @@ if [ "$HIGH_POWER_5G" = "true" ]; then
     fi
     log_info "5G高功率25db设置完成"
 fi
-
 log_info "自定义配置加载完成！"
-}
-
-# ======================================================
-# 同步.config（仅SSH模式）
-# 功能: 将SSH修改的.config文件同步回GitHub仓库
-# ======================================================
-# 参数1: GitHub Token
-# 参数2: GitHub 仓库
-# 参数3: GitHub Ref
-sync_config() {
-local github_token=$1
-local github_repository=$2
-local github_ref=$3
-
-# 检查环境
-if [ -z "$github_token" ] || [ -z "$github_repository" ] || [ -z "$github_ref" ]; then
-    log_error "缺少必要的GitHub环境变量，无法同步配置"
-    return 1
-fi
-
-# 配置Git
-git config --global user.name "GitHub Actions"
-git config --global user.email "actions@github.com"
-
-cd "$WORK_DIR"
-CONFIG_SOURCE="$SOURCE_DIR/.config"
-CONFIG_TARGET=".config"
-
-# 检查配置文件是否存在
-if [ ! -f "$CONFIG_SOURCE" ]; then
-    log_info "未找到$CONFIG_SOURCE"
-    return 0
-fi
-
-# 复制配置文件
-cp -f "$CONFIG_SOURCE" "$CONFIG_TARGET" && log_info "已复制$CONFIG_SOURCE到项目根目录"
-
-# 检查配置文件是否有修改
-if git diff --quiet "$CONFIG_TARGET"; then
-    log_info ".config未修改，无需上传"
-else
-    git add "$CONFIG_TARGET"
-    git commit -m "自动同步SSH修改的.config（Actions #${GITHUB_RUN_NUMBER}）"
-    git push "https://${github_token}@github.com/${github_repository}.git" "${github_ref}"
-    log_info ".config已上传"
-fi
 }
 
 # ======================================================
@@ -369,12 +265,6 @@ fi
 # ======================================================
 download_packages() {
 log_info "开始下载软件包..."
-
-# 检查源码目录
-if [ ! -d "$SOURCE_DIR" ]; then
-    log_error "源码目录 $SOURCE_DIR 不存在！"
-    return 1
-fi
 
 # 下载软件包，带重试机制
 cd "$SOURCE_DIR"
@@ -466,8 +356,8 @@ compile_firmware() {
 # ======================================================
 # 导出所有函数，使其在子shell中可用
 # ======================================================
-export -f log_info log_error init_env extract_cache_variables prepare_source 
-load_custom_feeds update_install_feeds load_custom_config sync_config 
+export -f log_info log_error init_env prepare_source
+load_custom_feeds update_install_feeds load_custom_config
 download_packages compile_firmware init_ccache
 
 # ======================================================

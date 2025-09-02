@@ -2,6 +2,15 @@ name: 构建OpenWrt专用Docker镜像
 
 on:
   workflow_dispatch:  # 手动触发
+    inputs:
+      repo_url:
+        description: '源码仓库URL'
+        required: false
+        default: 'https://github.com/padavanonly/immortalwrt-mt798x-6.6'
+      repo_branch:
+        description: '源码分支'
+        required: false
+        default: 'openwrt-24.10-6.6'
   repository_dispatch:  
     types: [固件源码更新构建容器]
 
@@ -12,6 +21,34 @@ jobs:
     steps:
       - name: 检查代码
         uses: actions/checkout@main
+
+      - name: 设置环境变量
+        run: |
+          # 根据触发来源设置环境变量
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # 从repository-dispatch事件获取参数
+            echo "REPO_URL=${{ github.event.client_payload.repo_url }}" >> $GITHUB_ENV
+            echo "REPO_BRANCH=${{ github.event.client_payload.repo_branch }}" >> $GITHUB_ENV
+            echo "COMMIT_HASH=${{ github.event.client_payload.commit_hash }}" >> $GITHUB_ENV
+            echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
+            echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 从源码更新检测工作流触发，使用传递的参数"
+          else
+            # 从workflow_dispatch或默认值获取参数
+            echo "REPO_URL=${{ github.event.inputs.repo_url || 'https://github.com/padavanonly/immortalwrt-mt798x-6.6' }}" >> $GITHUB_ENV
+            echo "REPO_BRANCH=${{ github.event.inputs.repo_branch || 'openwrt-24.10-6.6' }}" >> $GITHUB_ENV
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 手动触发，使用默认参数或指定参数"
+          fi
+          
+          # 输出当前使用的参数
+          echo "使用的源码仓库: ${{ env.REPO_URL }}"
+          echo "使用的源码分支: ${{ env.REPO_BRANCH }}"
+          if [ -n "${{ env.COMMIT_HASH }}" ]; then
+            echo "触发更新的提交哈希: ${{ env.COMMIT_HASH }}"
+          fi
+          if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
+            echo "触发来源: ${{ env.TRIGGER_SOURCE }}"
+          fi
 
       - name: 检查磁盘空间并设置清理标记
         run: |
@@ -82,6 +119,7 @@ jobs:
             BASE_IMAGE_REGISTRY=${{ env.BASE_IMAGE_REGISTRY || 'docker.io/library/' }}
             BASE_IMAGE_TAG=${{ env.BASE_IMAGE_TAG }}
             FORCE_UNSAFE_CONFIGURE=1
+            # 使用从环境变量获取的仓库信息
             BUILD_TRIGGER=$(git ls-remote ${{ env.REPO_URL }} ${{ env.REPO_BRANCH }} | awk '{print $1}')
           tags: |
             openwrt-builder:${{ env.TIMESTAMP }}
@@ -92,6 +130,7 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/openwrt-builder:cache,mode=max
           pull: true
           load: true
+        # 注意：这里不再需要硬编码的环境变量，因为已经在前面的步骤中设置了
         env:
           REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
           REPO_BRANCH: openwrt-24.10-6.6
@@ -173,18 +212,14 @@ jobs:
           echo "远程仓库已推送的标签："
           skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | grep -E "${{ env.TIMESTAMP }}|ubuntu22.04|latest"
 
-      - name: 安装jq工具
+      - name: 触发编译固件
         run: |
           echo "=== 安装jq工具用于解析JSON ==="
           sudo apt-get update
           sudo apt-get install -y jq
           echo "✅ jq工具安装完成"
           echo "当前jq版本：$(jq --version)"
-
-      - name: 触发编译固件工作流
-        run: |
           echo "=== 开始触发编译固件工作流 ==="
-          # 定义触发工作流所需的参数
           BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
           {
             "event_type": "容器更新触发自动编译固件",
@@ -196,21 +231,24 @@ jobs:
                 "hostname": "Rowrt",
                 "ssh": false,
                 "CACHEWRTBUILD_SWITCH": true,
-                "CLEAN_BUILD": false
+                "CLEAN_BUILD": false,
+                "repo_url": "${REPO_URL}",
+                "repo_branch": "${REPO_BRANCH}",
+                "commit_hash": "${COMMIT_HASH}",
+                "commit_logs": "${COMMIT_LOGS}",
+                "trigger_source": "${TRIGGER_SOURCE}"
               }
             }
           }
           EOF
           )
           
-          # 发送请求触发工作流
           RESPONSE=$(curl -X POST \
             -H "Authorization: token ${{ secrets.REPO_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/dispatches \
             -d "$BUILD_TRIGGER_PAYLOAD" 2>&1)
           
-          # 检查触发结果
           if [ $? -eq 0 ]; then
             echo "✅ 编译固件工作流已成功触发"
             echo "触发参数:"

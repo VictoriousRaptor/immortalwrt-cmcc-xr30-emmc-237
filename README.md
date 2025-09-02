@@ -14,7 +14,6 @@
 - 编译其他设备
    - 1.替换.config配置文件或更改其相关设备内容
    - 2.通过‘make menuconfig’选择对应设备
-#### 特别提示：编译其他设备时，需到`.github\workflows`目录下的`build-openwrt.yml`文件中`TARGET_DEVICE`环境变量的值`cmcc_rax3000m-emmc`修改为需要编译的设备
 ## 特性
 
 - **自动化编译**：使用GitHub Actions实现自动构建流程
