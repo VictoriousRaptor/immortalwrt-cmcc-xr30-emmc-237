@@ -92,6 +92,7 @@ env:
   DEVICE_NAME: cmcc_rax3000m-emmc
   KERNEL_VERSION: 6.6
   LUCI_VERSION: 24.10
+  BUILD_SCRIPT: ./build-openwrt.sh
 
 jobs:
   build:
@@ -101,17 +102,21 @@ jobs:
     steps:
     - name: 检查服务器性能
       run: |
-        echo "警告⚠"
-        echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
-        echo -e "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n"
-        echo "--------------------------CPU信息--------------------------"
-        echo "CPU物理数量：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)"
-        echo -e "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n"
-        echo "--------------------------内存信息--------------------------"
-        echo "已安装内存详细信息："
-        echo -e "$(sudo lshw -short -C memory | grep GiB) \n"
-        echo "--------------------------硬盘信息--------------------------"
-        echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
+        chmod +x ${{ env.BUILD_SCRIPT }}
+        source ${{ env.BUILD_SCRIPT }}
+        log_warn "警告" 0
+        log_warn "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！" 0
+        log_highlight "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n" 0
+        log_info "--------------------------CPU信息--------------------------" 0
+        log_highlight "CPU物理数量：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)" 0
+        log_highlight "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n" 0
+        log_info "--------------------------内存信息--------------------------" 0
+        log_highlight "已安装内存详细信息：" 0
+        log_highlight -e "$(sudo lshw -short -C memory | grep GiB) \n" 0
+        log_info "--------------------------硬盘信息--------------------------" 0
+        log_highlight "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" 0
+        log_highlight "硬盘信息：" 0
+        log_info -e "$(df -hT) \n" 0
     
     - name: 检查代码
       uses: actions/checkout@main
@@ -119,6 +124,7 @@ jobs:
     - name: 设置环境变量
       run: |
         # 根据触发来源设置环境变量
+        source ${{ env.BUILD_SCRIPT }}
         if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
           # 从repository-dispatch事件获取参数
           echo "REPO_URL=${{ github.event.client_payload.repo_url }}" >> $GITHUB_ENV
@@ -132,22 +138,22 @@ jobs:
           echo "CACHEWRTBUILD_SWITCH=${{ github.event.client_payload.cachewrtbuild_switch }}" >> $GITHUB_ENV
           echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
           echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
-          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 从源码更新检测工作流触发，使用传递的参数"
+          echo_info "从源码更新检测工作流触发，使用传递的参数"
         else
-          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 手动触发，使用默认参数或指定参数"
+          log_highlight "手动触发，使用默认参数或指定参数" 1
         fi
         
         # 输出当前使用的参数
-        echo "使用的源码仓库: ${{ env.REPO_URL }}"
-        echo "使用的源码分支: ${{ env.REPO_BRANCH }}"
+        log_highlight "使用的源码仓库: ${{ env.REPO_URL }}" 0
+        log_highlight "使用的源码分支: ${{ env.REPO_BRANCH }}" 0
         if [ -n "${{ env.COMMIT_HASH }}" ]; then
-          echo "触发更新的提交哈希: ${{ env.COMMIT_HASH }}"
+          log_highlight "触发更新的提交哈希: ${{ env.COMMIT_HASH }}" 0
         fi
         if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
-          echo "触发来源: ${{ env.TRIGGER_SOURCE }}"
+          log_highlight "触发来源: ${{ env.TRIGGER_SOURCE }}" 0
         fi
         if [ -n "${{ env.COMMIT_LOGS }}" ]; then
-          echo "触发更新的提交日志: ${{ env.COMMIT_LOGS }}"
+          log_highlight "触发更新的提交日志: ${{ env.COMMIT_LOGS }}" 0
         fi
 
     - name: 初始化编译环境（主机模式）
@@ -156,24 +162,13 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         cd "${{ env.WORK_DIR }}"
-        source ${{ env.WORK_DIR }}/build-openwrt.sh
+        source ${{ env.BUILD_SCRIPT }}
         init_env
 
     - name: 启动Docker容器（Docker模式）
       if: env.BUILD_TYPE == 'Docker'
       run: |
-        echo_color() {
-        case "$1" in
-            r) local Color="\033[0;31m";; # 红色
-            g) local Color="\033[0;32m";; # 绿色
-            y) local Color="\033[0;33m";; # 黄色
-            b) local Color="\033[0;34m";; # 蓝色
-            z) local Color="\033[0;35m";; # 紫色
-            l) local Color="\033[0;36m";; # 青色
-            *) local Color="\033[0;0m";;  # 默认色
-        esac
-        echo -e "${Color}${2}\033[0m"
-        }
+        source ${{ env.BUILD_SCRIPT }}
         echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
         FILTERED_TAGS=$(skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | \
         grep -oE '"(ubuntu22.04|latest|[0-9]{12})"' | \
@@ -215,18 +210,7 @@ jobs:
         
         echo -e "\n=== 迁移预置源码到共享目录 ==="
         docker exec builder bash -c '
-          echo_color() {
-          case "$1" in
-              r) local Color="\033[0;31m";; # 红色
-              g) local Color="\033[0;32m";; # 绿色
-              y) local Color="\033[0;33m";; # 黄色
-              b) local Color="\033[0;34m";; # 蓝色
-              z) local Color="\033[0;35m";; # 紫色
-              l) local Color="\033[0;36m";; # 青色
-              *) local Color="\033[0;0m";;  # 默认色
-          esac
-          echo -e "${Color}${2}\033[0m"
-          }
+          source ${{ env.BUILD_SCRIPT }}
           if [ -d "$SOURCE_DIR" ]; then
             echo_color y "⚠️ 清理共享目录旧内容：""$SOURCE_DIR"
             rm -rf "$SOURCE_DIR"/* "$SOURCE_DIR"/.* 2>/dev/null
@@ -256,31 +240,30 @@ jobs:
     - name: 克隆源码（主机模式）
       if: env.BUILD_TYPE == 'Host'
       run: |
-        source ${{ env.WORK_DIR }}/build-openwrt.sh
-        prepare_source
+        source ${{ env.BUILD_SCRIPT }} && prepare_source
 
     - name: 加载自定义feeds
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_feeds
+          source ${{ env.BUILD_SCRIPT }} && load_custom_feeds
         else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_feeds'
+          docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_feeds'
         fi
     
     - name: 更新并安装feeds
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh &&update_install_feeds
+          source ${{ env.BUILD_SCRIPT }} &&update_install_feeds
         else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && update_install_feeds'
+          docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && update_install_feeds'
         fi
     
     - name: 加载自定义配置
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_config
+          source ${{ env.BUILD_SCRIPT }} && load_custom_config
         else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_config' 
+          docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_config' 
         fi
       
     - name: SSH远程连接（make menuconfig）
@@ -295,58 +278,37 @@ jobs:
     - name: 同步.config（仅SSH模式）
       if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
       run: |
-        echo_color() {
-        case "$1" in
-            r) local Color="\033[0;31m";; # 红色
-            g) local Color="\033[0;32m";; # 绿色
-            y) local Color="\033[0;33m";; # 黄色
-            b) local Color="\033[0;34m";; # 蓝色
-            z) local Color="\033[0;35m";; # 紫色
-            l) local Color="\033[0;36m";; # 青色
-            *) local Color="\033[0;0m";;  # 默认色
-        esac
-        echo -e "${Color}${2}\033[0m"
-        }
+        source ${{ env.BUILD_SCRIPT }}
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
         cd "$WORK_DIR"
         CONFIG_SOURCE="$SOURCE_DIR/.config"
         cp -f "$CONFIG_SOURCE" "$CONFIG_FILE" && echo_color g "已复制$CONFIG_SOURCE到项目根目录"
         if git diff --quiet "$CONFIG_FILE"; then
-            echo_color y ".config未修改，无需上传"
+            log_info ".config未修改，无需上传" 0
         else
             git add "$CONFIG_FILE"
             git commit -m "自动同步SSH修改的.config（Actions #${GITHUB_RUN_NUMBER}）"
             git push "https://${{ secrets.REPO_TOKEN }}@github.com/${{ github.repository }}.git" "${{ github.ref }}"
-            echo_color g ".config已上传"
+            log_success ".config已上传" 0
         fi
 
     - name: 提取已选插件列表
       id: extract_plugins
       run: |
-        echo_color() {
-        case "$1" in
-            r) local Color="\033[0;31m";; # 红色
-            g) local Color="\033[0;32m";; # 绿色
-            y) local Color="\033[0;33m";; # 黄色
-            b) local Color="\033[0;34m";; # 蓝色
-            z) local Color="\033[0;35m";; # 紫色
-            l) local Color="\033[0;36m";; # 青色
-            *) local Color="\033[0;0m";;  # 默认色
-        esac
-        echo -e "${Color}${2}\033[0m"
-        }
+        source ${{ env.BUILD_SCRIPT }}
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
-          awk -F'[=]' '{name = substr($1, 16); print NR ". " name}')
-        [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
-        {
-          echo "plugins_list<<'EOF'"
+          awk -F'[=]' '{name = substr($1, 16); print "  " NR ". " name}')
+        [ -z "$plugins" ] && plugins="  无额外插件（仅基础系统）"
+        # 使用标准的EOF格式输出多行文本
+        { 
+          echo "plugins_list<<EOF"
           echo "$plugins"
           echo "EOF"
         } >> "$GITHUB_OUTPUT"
-        echo_color z "--已选插件列表--"
+        log_info "--已选插件列表--" 0
         echo -e "$plugins" | while IFS= read -r line; do
-          echo_color g "$line"
+          log_highlight "$line" 0
         done
 
     - name: 提取缓存相关变量
@@ -385,9 +347,9 @@ jobs:
       id: package
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh && download_packages
+          source ${{ env.BUILD_SCRIPT }} && download_packages
         else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && download_packages'
+          docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && download_packages'
         fi
  
     - name: 释放Ubuntu磁盘空间
@@ -405,17 +367,18 @@ jobs:
     - name: 查看清理后磁盘空间
       if: (!cancelled())
       run: |
-        echo "===== 磁盘空间 ====="
-        echo -e "\033[0;35m 系统空间      类型   总数  已用  可用 使用率\033[0m"
-        df -hT "$PWD"
+        source ${{ env.BUILD_SCRIPT }}
+        log_info "===== 磁盘空间 =====" 0
+        log_highlight "系统空间      类型   总数  已用  可用 使用率" 0
+        df -hT "$PWD" | log_highlight 0
         
     - name: 编译固件
       id: compile
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware
+          source ${{ env.BUILD_SCRIPT }} && compile_firmware
         else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware'
+          docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && compile_firmware'
         fi
         if [[ $compile_exit_code -ne 0 ]]; then
           exit 1
@@ -423,7 +386,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         FILE_DATE="_$(date +"%Y%m%d%H%M")"
         echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
-        echo "当前目录：$PWD"
+        log_highlight "当前目录：$PWD" 0
         EXTRACTED_LUCI_VERSION=$(grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
         ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
         LUCI_VERSION=${EXTRACTED_LUCI_VERSION:-${{ env.LUCI_VERSION }}}
@@ -436,9 +399,10 @@ jobs:
     - name: 检查编译后磁盘空间
       if: (!cancelled())
       run: |
-        echo "===== 磁盘空间 ====="
-        echo -e "\033[0;35m 系统空间      类型   总数  已用  可用 使用率\033[0m"
-        df -hT "$PWD"
+        source ${{ env.BUILD_SCRIPT }}
+        log_info "===== 磁盘空间 =====" 0
+        log_highlight "系统空间      类型   总数  已用  可用 使用率" 0
+        df -hT "$PWD" | log_highlight 0
 
     - name: 上传bin目录
       uses: actions/upload-artifact@v4
@@ -453,32 +417,49 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
         set -e
-        echo "DEVICE_TARGET: $DEVICE_TARGET"
-        echo "DEVICE_SUBTARGET: $DEVICE_SUBTARGET"
-        echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
-        echo "当前工作目录: $PWD"
+        source ${{ env.BUILD_SCRIPT }}
+        log_highlight "DEVICE_TARGET: $DEVICE_TARGET" 0
+        log_highlight "DEVICE_SUBTARGET: $DEVICE_SUBTARGET" 0
+        log_highlight "SOURCE_DIR: ${{ env.SOURCE_DIR }}" 0
+        log_highlight "当前工作目录: $PWD" 0
         WILDCARD_PATH="${{ env.SOURCE_DIR }}/bin/targets/*/*"
         KNOWN_FIRMWARE_DIR="${{ env.SOURCE_DIR }}/bin/targets/${DEVICE_TARGET}/${DEVICE_SUBTARGET}"
-        # 检查已知路径是否存在并尝试进入
-        if [ -d "$KNOWN_FIRMWARE_DIR" ]; then
-          echo "成功精准查找固件目录: $KNOWN_FIRMWARE_DIR"
-          cd "$KNOWN_FIRMWARE_DIR"  WILDCARD_DIRS=$(ls -d "$WILDCARD_PATH" 2>/dev/null)
-           cd "$WILDCARD_DIRS"PATH" 2>/dev/null | wc -l) -eq 1 ]; then
-                   echo "成功精准查找固件目录: $KNOWN_FIRMWARE_DIR"
-          cd "$KNOWN_FIRMWARE_DIR"Celse
-          echo "::error::未找到固件目录！可能的路径："
-          echo "- 精准路径: $KNOWN_FIRMWARE_DIR"
-          echo "- 通配符路径: $WILDCARD_PATH"
-          echo "status=failure" >> $GITHUB_OUTPUT
-          exit 1
+        
+        # 先尝试通过通配符查找固件目录
+        WILDCARD_DIRS=$(ls -d "$WILDCARD_PATH" 2>/dev/null)
+        DIR_COUNT=$(echo "$WILDCARD_DIRS" | wc -l)
+        
+        if [ $DIR_COUNT -eq 1 ]; then
+          log_success "通过通配符成功找到唯一固件目录: $WILDCARD_DIRS" 0
+          cd "$WILDCARD_DIRS"
+        else
+          # 通配符查找失败或找到多个目录，尝试使用精准路径
+          if [ -d "$KNOWN_FIRMWARE_DIR" ]; then
+            log_success "通过精准路径成功找到固件目录: $KNOWN_FIRMWARE_DIR" 0
+            cd "$KNOWN_FIRMWARE_DIR"
+          else
+            log_error "::error::未找到固件目录！可能的路径：" 0
+            log_warn "- 精准路径: $KNOWN_FIRMWARE_DIR" 0
+            log_warn "- 通配符路径: $WILDCARD_PATH" 0
+            log_warn "- 找到的目录数量: $DIR_COUNT" 0
+            if [ $DIR_COUNT -gt 1 ]; then
+              log_warn "找到多个目录: $WILDCARD_DIRS" 0
+            fi
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
         fi
-        rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null || echo "注意：某些文件可能不存在，继续处理"
-        echo "整理后的固件文件:"
-        ls -lh || echo "警告：无法列出文件"
+        
+        rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null || log_warn "注意：某些文件可能不存在，继续处理" 0
+        
+        # 显示整理后的固件文件
+        log_highlight "整理后的固件文件:" 0
+        ls -lh || log_warn "警告：无法列出文件" 0
+        
         # 设置成功状态和环境变量
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
-        echo "✅ 固件文件整理完成"
+        log_success "固件文件整理完成" 0
 
     - name: 上传固件到Artifact
       uses: actions/upload-artifact@v4
@@ -492,24 +473,27 @@ jobs:
       id: cowtransfer
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true' && !cancelled()
       run: |
+        source ${{ env.BUILD_SCRIPT }}
         curl -fsSL git.io/file-transfer | sh
         ./transfer cow --block 2621440 -s -p 64 --no-progress ${FIRMWARE} 2>&1 | tee cowtransfer.log
-        echo "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)"
+        log_info "::warning file=cowtransfer.com::$(cat cowtransfer.log | grep https)" 0
         echo "url=$(cat cowtransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_OUTPUT
 
     - name: 上传到WeTransfer
       id: wetransfer
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_WETRANSFER == 'true' && !cancelled()
       run: |
+        source ${{ env.BUILD_SCRIPT }}
         curl -fsSL git.io/file-transfer | sh
         ./transfer wet -s -p 16 --no-progress ${FIRMWARE} 2>&1 | tee wetransfer.log
-        echo "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)"
+        log_info "::warning file=wetransfer.com::$(cat wetransfer.log | grep https)" 0
         echo "url=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_OUTPUT
 
     - name: 生成发布信息
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
+        source ${{ env.BUILD_SCRIPT }}
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
@@ -538,7 +522,7 @@ jobs:
         EOF
         echo "status=success" >> $GITHUB_OUTPUT
         cat release.txt
-        echo "✅ 发布信息生成完成"
+        log_success "发布信息生成完成" 0
 
     - name: 上传固件到Release
       uses: softprops/action-gh-release@v2
@@ -551,14 +535,15 @@ jobs:
     - name: 清理旧缓存
       if: env.CACHEWRTBUILD_SWITCH == 'true'
       run: |
+        source ${{ env.BUILD_SCRIPT }}
         # 获取缓存列表并删除
         gh cache list --key ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}- --json key --jq '.[] | .key' | while read -r key; do
           gh cache delete "$key"
         done
         # 输出缓存状态
-        echo "========缓存状态========"
-        echo "ccache: $(du -sh $OPENWRT_PATH/.ccache | cut -f 1)"
-        echo "staging: $(du -sh $OPENWRT_PATH/staging_dir | cut -f 1)"
+        log_separator "缓存状态" 0
+        log_highlight "ccache: $(du -sh $OPENWRT_PATH/.ccache | cut -f 1)" 0
+        log_highlight "staging: $(du -sh $OPENWRT_PATH/staging_dir | cut -f 1)" 0
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: 清理旧工作流记录

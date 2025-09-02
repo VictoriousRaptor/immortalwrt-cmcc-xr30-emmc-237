@@ -3,7 +3,12 @@
 # ======================================================
 # 参数1: 颜色代码(r:红色, g:绿色, y:黄色, b:蓝色, z:紫色, l:青色)
 # 参数2: 日志内容
-echo_color() {
+# ======================================================
+# 日志函数 - 添加颜色支持
+# ======================================================
+# 参数1: 颜色代码(r:红色, g:绿色, y:黄色, b:蓝色, z:紫色, l:青色)
+# 参数2: 日志内容
+function echo_color() {
 case "$1" in
     r) local Color="\033[0;31m";; # 红色
     g) local Color="\033[0;32m";; # 绿色
@@ -13,23 +18,110 @@ case "$1" in
     l) local Color="\033[0;36m";; # 青色
     *) local Color="\033[0;0m";;  # 默认色
 esac
-echo -e "${Color}${2}\033[0m"
+if [ -t 1 ]; then
+    # 如果输出到终端，使用彩色
+    echo -e "${Color}${2}\033[0m"
+else
+    # 否则输出纯文本（适用于日志文件等）
+    echo -e "${2}"
+fi
 }
 
 # 信息日志函数
 # 参数1: 日志内容
-log_info() {
-echo_color "g" "[$(date +'%m-%d %H:%M:%S')] $1"
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
+function log_info() {
+local show_time=${2:-1}
+if [ "$show_time" -eq 1 ]; then
+    echo_color "g" "[$(date +'%m-%d %H:%M:%S')] $1"
+else
+    echo_color "g" "$1"
+fi
 }
 
 # 错误日志函数
 # 参数1: 错误内容
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
 # 返回值: 1 (表示错误)
-log_error() {
-echo_color "r" "[$(date +'%m-%d %H:%M:%S')] ❌ $1" >&2
+function log_error() {
+local show_time=${2:-1}
+if [ "$show_time" -eq 1 ]; then
+    echo_color "r" "[$(date +'%m-%d %H:%M:%S')] ❌ $1" >&2
+else
+    echo_color "r" "❌ $1" >&2
+fi
 return 1
 }
 
+# 警告日志函数
+# 参数1: 警告内容
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
+function log_warn() {
+local show_time=${2:-1}
+if [ "$show_time" -eq 1 ]; then
+    echo_color "y" "[$(date +'%m-%d %H:%M:%S')] ⚠️ $1"
+else
+    echo_color "y" "⚠️ $1"
+fi
+}
+
+# 成功提示函数
+# 参数1: 成功内容
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
+function log_success() {
+local show_time=${2:-1}
+if [ "$show_time" -eq 1 ]; then
+    echo_color "g" "[$(date +'%m-%d %H:%M:%S')] ✅ $1"
+else
+    echo_color "g" "✅ $1"
+fi
+}
+
+# 分隔线输出函数
+# 参数1: 标题内容(可选)
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
+function log_separator() {
+local title="$1"
+local show_time=${2:-1}
+if [ -n "$title" ]; then
+    if [ "$show_time" -eq 1 ]; then
+        echo_color "b" "\n===== $title $(date +'%m-%d %H:%M:%S') ====="
+    else
+        echo_color "b" "\n===== $title ====="
+    fi
+else
+    echo_color "b" "\n======================================="
+fi
+}
+
+# 调试信息输出函数(默认不显示，通过DEBUG环境变量控制)
+# 参数1: 调试内容
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
+function log_debug() {
+if [ "$DEBUG" = "true" ]; then
+    local show_time=${2:-1}
+    if [ "$show_time" -eq 1 ]; then
+        echo_color "z" "[DEBUG $(date +'%m-%d %H:%M:%S')] $1"
+    else
+        echo_color "z" "[DEBUG] $1"
+    fi
+fi
+}
+
+# 突出提示日志函数
+# 参数1: 提示内容
+# 参数2: 可选，时间显示控制(0=不显示时间, 1=显示时间，默认1)
+function log_highlight() {
+local show_time=${2:-1}
+if [ "$show_time" -eq 1 ]; then
+    echo_color "z" "[$(date +'%m-%d %H:%M:%S')] $1"
+else
+    echo_color "z" "$1"
+fi
+}
+
+# 函数导出，确保在子shell和Docker环境中可用
+export -f echo_color log_info log_error log_warn log_success log_separator log_debug log_highlight
 
 # ======================================================
 # 初始化环境函数（仅主机编译使用）
