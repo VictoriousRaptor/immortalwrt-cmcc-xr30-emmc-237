@@ -246,7 +246,8 @@ jobs:
           echo_color l "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
           cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && echo_color g "已加载.config文件"
           cd "$SOURCE_DIR"
-          make defconfig > /dev/null 2>&1
+          //暂时移除输出重定向以便查看错误信息
+          make defconfig
         '
 
     - name: 克隆源码（主机模式）

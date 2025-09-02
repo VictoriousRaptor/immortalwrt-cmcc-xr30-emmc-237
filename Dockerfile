@@ -128,16 +128,22 @@ RUN set -e && \
     apt-get -qq install -f -y && \
     apt-get -qq install -y --no-install-recommends \
         # 最小编译工具集
-        build-essential gcc-multilib g++-multilib \
+        build-essential gcc-multilib g++-multilib binutils \
+        # 编译必备工具链 - 添加关键工具
+        autoconf automake autopoint bison flex gettext gawk \
         # 必需的库文件
         libc6-dev-i386 libncurses5-dev libncursesw5-dev \
         libreadline-dev libssl-dev zlib1g-dev zstd \
+        # 添加缺少的关键库
+        libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
         # 必需的系统工具
-        ccache cmake curl git \
+        ccache cmake curl device-tree-compiler git pkgconf \
         # 必需的编程语言
-        python2.7 python3 \
+        python2.7 python3 python3-pyelftools \
         # 网络工具
         wget \
+        # 添加证书包解决SSL验证问题
+        ca-certificates \
     && \
     # 清理以减小体积
     apt-get -qq autoremove --purge && \
