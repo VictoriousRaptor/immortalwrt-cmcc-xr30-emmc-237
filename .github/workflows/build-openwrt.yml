@@ -169,7 +169,7 @@ jobs:
         esac
         echo -e "${Color}${2}\033[0m"
         }
-        echo_color z "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
         FILTERED_TAGS=$(skopeo list-tags docker://ghcr.io/${{ github.repository_owner }}/openwrt-builder | \
         grep -oE '"(ubuntu22.04|latest|[0-9]{12})"' | \
         tr -d '"' | \
