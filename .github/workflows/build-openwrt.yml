@@ -9,7 +9,8 @@
 name: 编译固件（RAX3000M-EMMC）
 
 on:
-  repository_dispatch:
+  repository_dispatch:  
+    types: [镜像更新触发自动编译固件]
   workflow_dispatch:
     inputs:
       build_type:

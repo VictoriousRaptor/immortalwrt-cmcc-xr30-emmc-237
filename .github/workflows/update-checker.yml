@@ -129,7 +129,7 @@ jobs:
           echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
 
       # 步骤6：有更新时触发镜像构建工作流
-      - name: 源码更新触发构建容器
+      - name: 触发构建镜像
         if: steps.compareHash.outputs.hasUpdate == 'true'
         run: |
           echo "=== 安装jq工具用于解析JSON ==="
@@ -138,15 +138,15 @@ jobs:
           echo "✅ jq工具安装完成"
           echo "当前jq版本：$(jq --version)"
           echo "=== 开始触发构建容器工作流 ==="
-          BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
+          BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
-            "event_type": "固件源码更新构建容器",
-            client-payload: {
-              repo_url: env.REPO_URL,
-              repo_branch: env.REPO_BRANCH,
-              commit_hash: steps.getCommitInfo.outputs.commitHash,
-              commit_logs: steps.getCommitInfo.outputs.commitLogs,
-              trigger_source: '固件源码更新检测'
+            "event_type": "固件源码更新构建镜像",
+            "client_payload": {
+              "repo_url": "${{ env.REPO_URL }}",
+              "repo_branch": "${{ env.REPO_BRANCH }}",
+              "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
+              "commit_logs": "${{ steps.getCommitInfo.outputs.commitLogs }}",
+              "trigger_source": "固件源码更新检测"
             }
           }
           EOF
@@ -165,7 +165,7 @@ jobs:
             echo "触发参数:"
             # 从BUILD_TRIGGER_PAYLOAD中提取参数并输出，避免维护两份
             echo "  - event_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.event_type')"
-            echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.REPO_URL')"
+            echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_url')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_hash')"
             echo "  - 更新日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_logs')"
           else

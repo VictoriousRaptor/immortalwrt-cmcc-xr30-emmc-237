@@ -12,7 +12,7 @@ on:
         required: false
         default: 'openwrt-24.10-6.6'
   repository_dispatch:  
-    types: [固件源码更新构建容器]
+    types: [固件源码更新构建镜像]
 
 jobs:
   build-and-push:
@@ -222,7 +222,7 @@ jobs:
           echo "=== 开始触发编译固件工作流 ==="
           BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
           {
-            "event_type": "容器更新触发自动编译固件",
+            "event_type": "镜像更新触发自动编译固件",
             "client_payload": {
               "inputs": {
                 "build_type": "Docker",
