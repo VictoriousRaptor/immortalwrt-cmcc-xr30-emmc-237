@@ -341,7 +341,9 @@ jobs:
           echo "EOF"
         } >> "$GITHUB_OUTPUT"
         echo_color z "--已选插件列表--"
-        echo_color g "$plugins"
+        echo -e "$plugins" | while IFS= read -r line; do
+          echo_color g "$line"
+        done
 
     - name: 提取缓存相关变量
       run: |
@@ -520,7 +522,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: steps.tag.outputs.status == 'success' && !cancelled()
       with:
-        tag_name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        tag_name: ${{ env.DEVICE_NAME }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
