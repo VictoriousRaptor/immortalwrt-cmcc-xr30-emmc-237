@@ -23,11 +23,11 @@ on:
           - Docker
       lan_ip:
         description: '设置LAN IP地址'
-        required: false
+        required: true
         default: '192.168.3.1'
       default_theme:
         description: '选择默认主题'
-        required: false
+        required: true
         default: 'argon'
         type: choice
         options:
@@ -35,7 +35,7 @@ on:
           - bootstrap
       hostname:
         description: '设置主机名'
-        required: false
+        required: true
         default: 'Rowrt'
       high_power_5g:
         description: '5G高功率25db'
@@ -44,12 +44,12 @@ on:
         type: boolean
       ssh:
         description: '通过SSH连接到Actions'
-        required: false
+        required: true
         default: false
         type: boolean
       cachewrtbuild_switch:
         description: '缓存加速编译'
-        required: false
+        required: true
         default: true
         type: boolean
       # 移除clean_build配置
@@ -83,6 +83,7 @@ env:
   # Docker相关配置
   DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
   SRC_OPENWRT_DIR: /opt/openwrt # 容器内置源码目录
+  DEFAULT_DIR: /opt/build #容器默认工作目录
   GITHUB_RUN_NUMBER: ${{ github.run_number }}
   # 新增缓存相关变量
   CCACHE_DIR: ./openwrt/.ccache
@@ -194,7 +195,7 @@ jobs:
         
         docker run -d --name builder \
           --env-file .env \
-          -v "$PWD":"${{ github.workspace }}":rw \
+          -v "$PWD":"${{ env.DEFAULT_DIR }}":rw \
           -e TZ="${{ env.TZ }}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
