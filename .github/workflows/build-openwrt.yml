@@ -199,6 +199,7 @@ jobs:
             echo "$var=$value" >> .env
           fi
         done
+        
         log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         log_info "$(cat .env)" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
