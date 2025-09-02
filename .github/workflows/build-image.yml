@@ -10,13 +10,13 @@ env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6 
   REPO_BRANCH: openwrt-24.10-6.6
   # 自动编译固件默认配置
-  BUILD_TYPE: docker
-  LAN_IP: 192.168.3.1
-  HOSTNAME: Rowrt
-  DEFAULT_THEME: argon
-  HIGH_POWER_5G: true
-  SSH: false
-  CACHEWRTBUILD_SWITCH: true
+  BUILD_TYPE: 'docker'
+  LAN_IP: '192.168.3.1'
+  HOSTNAME: 'Rowrt'
+  DEFAULT_THEME: 'argon'
+  HIGH_POWER_5G: 'true'
+  SSH: 'false'
+  CACHEWRTBUILD_SWITCH: 'true'
 
 jobs:
   build-and-push:
@@ -140,6 +140,7 @@ jobs:
           echo "本地已构建的镜像："
           docker images | grep openwrt-builder
           LOCAL_IMAGE_TAG="openwrt-builder:${{ env.TIMESTAMP }}"
+          SRC_OPENWRT_DIR=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "echo \$SRC_OPENWRT_DIR")
           echo -e "\n--- 获取源码目录（$SRC_OPENWRT_DIR）详细信息 ---"
           DIR_DETAILS=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "
             set -e
@@ -210,7 +211,7 @@ jobs:
                 "hostname": "${{ env.HOSTNAME }}",
                 "high_power_5g": "${{ env.HIGH_POWER_5G }}",
                 "ssh": "${{ env.SSH }}",
-                "cachewrtbuild_switch": "${{ env.CACHEWRTBUILD_SWITCH }}",
+                "cachewrtbuild_switch": "${{ env.CACHEWRTBUILD_SWITCH }}"
                 "repo_url": "${{ env.REPO_URL }}",
                 "repo_branch": "${{ env.REPO_BRANCH }}",  
                 "commit_hash": "${{ env.COMMIT_HASH }}",
