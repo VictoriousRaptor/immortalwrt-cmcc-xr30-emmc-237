@@ -193,10 +193,13 @@ jobs:
         done
         log_info "-----------------" 0
         log_info "开始打包环境变量到容器" 0
-        while IFS='=' read -r var value; do
-          echo "$var=$value" >> .env
-        done <<< "$(printenv)"
-        log_info "环境变量打包完成" 0
+        > .env
+        printenv | while IFS='=' read -r var value; do
+          if [[ ! -z "$var" && "$var" != *"_"* && "$var" != "BASH_FUNC_"* && ! "$value" =~ \(.*\) ]]; then
+            echo "$var=$value" >> .env
+          fi
+        done
+        log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         log_info "$(cat .env)" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
         
@@ -361,7 +364,8 @@ jobs:
  
     - name: 释放Ubuntu磁盘空间
       uses: danshui-git/free-disk-space@main
-      timeout-minutes: 6
+      continue-on-error: true
+      timeout-minutes: 15
       with:
         remove_android: true
         remove_dotnet: true
