@@ -293,7 +293,7 @@ jobs:
           
     - name: 同步.config（仅SSH模式）
       if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
-      run:
+      run: |
         echo_color() {
         case "$1" in
             r) local Color="\033[0;31m";; # 红色
@@ -315,8 +315,8 @@ jobs:
             echo_color y ".config未修改，无需上传"
         else
             git add "$CONFIG_FILE"
-            git commit -m "自动同步SSH修改的.config（Actions ${GITHUB_RUN_NUMBER}）"
-            git push "https://${github_token}@github.com/${github_repository}.git" "${github_ref}"
+            git commit -m "自动同步SSH修改的.config（Actions #${GITHUB_RUN_NUMBER}）"
+            git push "https://${{ secrets.REPO_TOKEN }}@github.com/${{ github.repository }}.git" "${{ github.ref }}"
             echo_color g ".config已上传"
         fi
 
