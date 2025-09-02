@@ -337,10 +337,10 @@ jobs:
         echo -e "${Color}${2}\033[0m"
         }
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
-          awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
+          awk -F'[=]' '{name = substr($1, 16); print NR ". " name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
         {
-          echo "plugins_list<<EOF"
+          echo "plugins_list<<'EOF'"
           echo "$plugins"
           echo "EOF"
         } >> "$GITHUB_OUTPUT"
@@ -452,20 +452,30 @@ jobs:
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
+        set -e
+        echo "DEVICE_TARGET: $DEVICE_TARGET"
+        echo "DEVICE_SUBTARGET: $DEVICE_SUBTARGET"
+        echo "SOURCE_DIR: ${{ env.SOURCE_DIR }}"
+        echo "当前工作目录: $PWD"
         WILDCARD_PATH="${{ env.SOURCE_DIR }}/bin/targets/*/*"
         KNOWN_FIRMWARE_DIR="${{ env.SOURCE_DIR }}/bin/targets/${DEVICE_TARGET}/${DEVICE_SUBTARGET}"
-        WILDCARD_DIRS=$(ls -d "$WILDCARD_PATH" 2>/dev/null)
-        if [ -n "$WILDCARD_DIRS" ] && [ $(echo "$WILDCARD_DIRS" | wc -l) -eq 1 ]; then
-          cd "$WILDCARD_DIRS"
-        elif [ -d "$KNOWN_FIRMWARE_DIR" ]; then
-          echo "成功精准查找固件目录"
-          cd "$KNOWN_FIRMWARE_DIR"
-        else
-          echo "未找到固件目录"
+        # 检查已知路径是否存在并尝试进入
+        if [ -d "$KNOWN_FIRMWARE_DIR" ]; then
+          echo "成功精准查找固件目录: $KNOWN_FIRMWARE_DIR"
+          cd "$KNOWN_FIRMWARE_DIR"  WILDCARD_DIRS=$(ls -d "$WILDCARD_PATH" 2>/dev/null)
+           cd "$WILDCARD_DIRS"PATH" 2>/dev/null | wc -l) -eq 1 ]; then
+                   echo "成功精准查找固件目录: $KNOWN_FIRMWARE_DIR"
+          cd "$KNOWN_FIRMWARE_DIR"Celse
+          echo "::error::未找到固件目录！可能的路径："
+          echo "- 精准路径: $KNOWN_FIRMWARE_DIR"
+          echo "- 通配符路径: $WILDCARD_PATH"
+          echo "status=failure" >> $GITHUB_OUTPUT
+          exit 1
         fi
-        rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null
+        rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null || echo "注意：某些文件可能不存在，继续处理"
         echo "整理后的固件文件:"
-        ls -lh
+        ls -lh || echo "警告：无法列出文件"
+        # 设置成功状态和环境变量
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
         echo "✅ 固件文件整理完成"
