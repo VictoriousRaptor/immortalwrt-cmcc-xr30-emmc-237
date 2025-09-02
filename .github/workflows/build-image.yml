@@ -2,17 +2,12 @@ name: 构建OpenWrt专用Docker镜像
 
 on:
   workflow_dispatch:  # 手动触发
-    inputs:
-      repo_url:
-        description: '源码仓库URL'
-        required: false
-        default: 'https://github.com/padavanonly/immortalwrt-mt798x-6.6'
-      repo_branch:
-        description: '源码分支'
-        required: false
-        default: 'openwrt-24.10-6.6'
   repository_dispatch:  
     types: [固件源码更新构建镜像]
+
+env:
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6 
+  REPO_BRANCH: openwrt-24.10-6.6 
 
 jobs:
   build-and-push:
@@ -34,9 +29,6 @@ jobs:
             echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
             echo "[$(date +'%Y-%m-%d %H:%M:%S')] 从源码更新检测工作流触发，使用传递的参数"
           else
-            # 从workflow_dispatch或默认值获取参数
-            echo "REPO_URL=${{ github.event.inputs.repo_url || 'https://github.com/padavanonly/immortalwrt-mt798x-6.6' }}" >> $GITHUB_ENV
-            echo "REPO_BRANCH=${{ github.event.inputs.repo_branch || 'openwrt-24.10-6.6' }}" >> $GITHUB_ENV
             echo "[$(date +'%Y-%m-%d %H:%M:%S')] 手动触发，使用默认参数或指定参数"
           fi
           
@@ -48,6 +40,9 @@ jobs:
           fi
           if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
             echo "触发来源: ${{ env.TRIGGER_SOURCE }}"
+          fi
+          if [ -n "${{ env.COMMIT_LOGS }}" ]; then
+            echo "触发更新的提交日志: ${{ env.COMMIT_LOGS }}"
           fi
 
       - name: 检查磁盘空间并设置清理标记
