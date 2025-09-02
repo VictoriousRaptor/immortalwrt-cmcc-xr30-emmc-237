@@ -227,7 +227,7 @@ jobs:
           BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
           {
             "event_type": "镜像更新触发自动编译固件",
-            "client_openwrt": {
+            "client_payload": {
               "inputs": {
                 "build_type": "${{ env.BUILD_TYPE }}",
                 "lan_ip": "${{ env.LAN_IP }}",
@@ -256,16 +256,13 @@ jobs:
           if [ $? -eq 0 ]; then
             echo "✅ 编译固件工作流已成功触发"
             echo "触发参数:"
-            
-            # 从BUILD_TRIGGER_PAYLOAD中提取参数并输出，避免维护两份
-            echo "  - event_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.event_type')"
-            echo "  - build_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.build_type')"
-            echo "  - lan_ip: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.lan_ip')"
-            echo "  - default_theme: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.default_theme')"
-            echo "  - high_power_5g: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.high_power_5g')"
-            echo "  - hostname: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.hostname')"
-            echo "  - ssh: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.ssh')"
-            echo "  - cachewrtbuild_switch: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_openwrt.inputs.cachewrtbuild_switch')"
+            echo "  - build_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.build_type')"
+            echo "  - lan_ip: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.lan_ip')"
+            echo "  - default_theme: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.default_theme')"
+            echo "  - high_power_5g: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.high_power_5g')"
+            echo "  - hostname: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.hostname')"
+            echo "  - ssh: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.ssh')"
+            echo "  - cachewrtbuild_switch: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.cachewrtbuild_switch')"
           else
             echo "❌ 编译固件工作流触发失败！"
             echo "错误信息: $RESPONSE"

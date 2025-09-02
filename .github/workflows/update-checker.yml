@@ -147,7 +147,6 @@ jobs:
           if [ $? -eq 0 ]; then
             echo "✅ 构建容器工作流已成功触发"
             echo "触发参数:"
-            echo "  - event_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.event_type')"
             echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_url')"
             echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_branch')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_hash')"
