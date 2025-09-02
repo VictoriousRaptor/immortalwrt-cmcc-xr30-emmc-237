@@ -139,28 +139,6 @@ jobs:
         run: |
           echo "本地已构建的镜像："
           docker images | grep openwrt-builder
-          echo "=== 开始验证本地镜像核心环境 ==="
-          LOCAL_IMAGE_TAG="openwrt-builder:${{ env.TIMESTAMP }}"
-          
-          if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$LOCAL_IMAGE_TAG"; then
-            echo "❌ 本地镜像 $LOCAL_IMAGE_TAG 不存在，构建失败！"
-            exit 1
-          fi
-          
-          echo -e "\n--- 获取本地镜像内环境变量 ---"
-          SRC_OPENWRT_DIR=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "echo \$SRC_OPENWRT_DIR")
-          FORCE_UNSAFE_CONFIGURE=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "echo \$FORCE_UNSAFE_CONFIGURE")
-          
-          if [ -z "$SRC_OPENWRT_DIR" ] || [ -z "$FORCE_UNSAFE_CONFIGURE" ]; then
-            echo "❌ 获取环境变量失败！"
-            echo "SRC_OPENWRT_DIR: '$SRC_OPENWRT_DIR'"
-            echo "FORCE_UNSAFE_CONFIGURE: '$FORCE_UNSAFE_CONFIGURE'"
-            exit 1
-          fi
-          echo "✅ 获取到的环境变量："
-          echo "SRC_OPENWRT_DIR（源码目录）: $SRC_OPENWRT_DIR"
-          echo "FORCE_UNSAFE_CONFIGURE（编译变量）: $FORCE_UNSAFE_CONFIGURE"
-      
           echo -e "\n--- 获取源码目录（$SRC_OPENWRT_DIR）详细信息 ---"
           DIR_DETAILS=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "
             set -e

@@ -138,8 +138,10 @@ RUN set -e && \
         libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
         # 必需的系统工具
         ccache cmake curl device-tree-compiler git pkgconf \
+        # 添加缺失的文件处理工具
+        rsync unzip file \
         # 必需的编程语言
-        python2.7 python3 python3-pyelftools \
+        python2.7 python3 python3-pyelftools python3-distutils \
         # 网络工具
         wget \
         # 添加证书包解决SSL验证问题
