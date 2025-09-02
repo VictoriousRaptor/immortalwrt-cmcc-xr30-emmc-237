@@ -38,6 +38,8 @@ RUN set -e && \
         bzip2 cpio p7zip p7zip-full patch rsync squashfs-tools unzip \
         # 系统工具
         ccache cmake curl device-tree-compiler git pkgconf \
+        # 添加证书包解决SSL验证问题
+        ca-certificates \
         # 编程语言支持
         python2.7 python3 python3-pyelftools python3-setuptools libpython3-dev \
         # 网络工具（最小化）
@@ -63,6 +65,8 @@ RUN set -e && \
 
 # 单独的层用于源码克隆和校验，便于缓存
 RUN set -e && \
+    # 配置Git忽略SSL证书验证问题（作为备选方案）
+    git config --global http.sslVerify false && \
     echo "=== 获取远程源码哈希: $REPO_URL ($REPO_BRANCH) ===" && \
     REMOTE_COMMIT=$(git ls-remote $REPO_URL $REPO_BRANCH | awk '{print $1}') && \
     if [ -z "$REMOTE_COMMIT" ]; then \
