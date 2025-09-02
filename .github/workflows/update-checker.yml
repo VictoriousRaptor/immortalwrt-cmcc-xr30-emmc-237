@@ -137,9 +137,7 @@ jobs:
           sudo apt-get install -y jq
           echo "✅ jq工具安装完成"
           echo "当前jq版本：$(jq --version)"
-          echo "=== 开始触发编译固件工作流 ==="
-          token: ${{ secrets.ACTIONS_TRIGGER_PAT }}
-          event-type: 固件源码更新构建容器
+          echo "=== 开始触发构建容器工作流 ==="
           BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
           {
             "event_type": "固件源码更新构建容器",
