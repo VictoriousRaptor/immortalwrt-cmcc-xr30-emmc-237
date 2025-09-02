@@ -308,9 +308,7 @@ compile_firmware() {
 # ======================================================
 # 导出所有函数，使其在子shell中可用
 # ======================================================
-export -f log_info log_error init_env prepare_source
-load_custom_feeds update_install_feeds load_custom_config
-download_packages compile_firmware
+export -f log_info log_error init_env prepare_source load_custom_feeds update_install_feeds load_custom_config download_packages compile_firmware
 
 # ======================================================
 # 主函数（如果直接运行脚本时使用）
