@@ -150,16 +150,16 @@ jobs:
         fi
         
         # 输出当前使用的参数
-        log_highlight "使用的源码仓库: ${{ env.REPO_URL }}" 0
-        log_highlight "使用的源码分支: ${{ env.REPO_BRANCH }}" 0
+        log_highlight "使用的源码仓库: ${{ env.REPO_URL }}" 1
+        log_highlight "使用的源码分支: ${{ env.REPO_BRANCH }}" 1
         if [ -n "${{ env.COMMIT_HASH }}" ]; then
-          log_highlight "触发更新的提交哈希: ${{ env.COMMIT_HASH }}" 0
+          log_highlight "触发更新的提交哈希: ${{ env.COMMIT_HASH }}" 1
         fi
         if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
-          log_highlight "触发来源: ${{ env.TRIGGER_SOURCE }}" 0
+          log_highlight "触发来源: ${{ env.TRIGGER_SOURCE }}" 1
         fi
         if [ -n "${{ env.COMMIT_LOGS }}" ]; then
-          log_highlight "触发更新的提交日志: ${{ env.COMMIT_LOGS }}" 0
+          log_highlight "触发更新的提交日志: ${{ env.COMMIT_LOGS }}" 1
         fi
 
     - name: 初始化编译环境（主机模式）
@@ -195,9 +195,9 @@ jobs:
         log_info "开始打包环境变量到容器" 0
         > .env
         printenv | grep -E '^[a-zA-Z0-9_]+=([^\(\)]|$)' | while IFS='=' read -r var value; do
+          log_info "环境变量：var：$var|value：$value" 0
           echo "$var=$value" >> .env
         done
-        log_info "$(cat .env)" 0
         log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
         
@@ -207,42 +207,41 @@ jobs:
           -e TZ="${{ env.TZ }}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
-        echo_color z -e "\n=== 验证容器运行状态 ==="
+        log_separator "验证容器运行状态" 0
         docker ps -a | grep builder
         if [ $? -ne 0 ]; then
-          echo_color r "❌ 容器启动失败，请查看日志："
-          docker logs builder
+          log_error "❌ 容器启动失败，请查看日志：" 0
+          log_error "$(docker logs builder)" 0
           exit 1
         fi
-        echo_color g "✅ 容器运行正常"
+        log_success "容器运行正常" 0
         
-        echo -e "\n=== 迁移预置源码到共享目录 ==="
+        log_separator "迁移预置源码到共享目录" 0
         docker exec builder bash -c '
           source ${{ env.BUILD_SCRIPT }}
           if [ -d "$SOURCE_DIR" ]; then
-            echo_color y "⚠️ 清理共享目录旧内容：""$SOURCE_DIR"
+            log_warn "清理共享目录旧内容：$SOURCE_DIR" 0
             rm -rf "$SOURCE_DIR"/* "$SOURCE_DIR"/.* 2>/dev/null
           else
             mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
           fi
-          echo_color l "开始复制源码（含隐藏文件）..."
+          log_info "开始复制源码（含隐藏文件）..." 0
           cp -a "${SRC_OPENWRT_DIR}/." "${SOURCE_DIR}"
           critical_files=("scripts/feeds" "target/linux" "package")
           for file in "${critical_files[@]}"; do
             check_path="$SOURCE_DIR/$file"
             if [ ! -e "$check_path" ]; then
-              echo_color r "❌ 迁移失败：共享目录缺失关键文件 $check_path"
+              log_error "迁移失败：共享目录缺失关键文件 $check_path" 0
               exit 1
             fi
           done
-          echo_color g "✅ 预置源码迁移完成"
-          echo_color l "  - 从：$SRC_OPENWRT_DIR"
-          echo_color l "  - 到：""$SOURCE_DIR"
-          echo_color l "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
-          cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && echo_color g "已加载.config文件"
+          log_success "预置源码迁移完成" 0
+          log_highlight "  - 从：$SRC_OPENWRT_DIR" 0
+          log_highlight "  - 到：""$SOURCE_DIR" 0
+          log_highlight "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")" 0
+          cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_success "已加载.config文件" 0
           cd "$SOURCE_DIR"
-          # 暂时移除输出重定向以便查看错误信息
-          make defconfig
+          make defconfig > /dev/null 2>&1
         '
 
     - name: 克隆源码（主机模式）
@@ -379,7 +378,7 @@ jobs:
         source ${{ env.BUILD_SCRIPT }}
         log_info "===== 磁盘空间 =====" 0
         log_highlight "系统空间      类型   总数  已用  可用 使用率" 0
-        df -hT "$PWD" | log_highlight 0
+        log_highlight "$(df -hT "$PWD")" 0
         
     - name: 编译固件
       id: compile
@@ -411,7 +410,7 @@ jobs:
         source ${{ env.BUILD_SCRIPT }}
         log_info "===== 磁盘空间 =====" 0
         log_highlight "系统空间      类型   总数  已用  可用 使用率" 0
-        df -hT "$PWD" | log_highlight 0
+        log_highlight "$(df -hT "$PWD")" 0
 
     - name: 上传bin目录
       uses: actions/upload-artifact@v4
