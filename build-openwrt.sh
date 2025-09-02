@@ -332,10 +332,14 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ]; then
         log_error "未找到 EEPROM 文件"
         exit 1
     fi
-    EXPECTED_CONTENT=$(printf '\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B')
-    CURRENT_CONTENT=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>/dev/null || log_error "读取EEPROM文件失败")
-    if [ "$CURRENT_CONTENT" != "$EXPECTED_CONTENT" ]; then
-        printf '\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B\x2B' | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) conv=notrunc
+    EXPECTED_CONTENT=$(printf '\x2B%.0s' {1..20})
+    CURRENT_CONTENT=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
+    if [ $? -ne 0 ]; then
+    log_error "读取EEPROM文件失败: $EEPROM_FILE"
+    fi
+    if [ "$(printf '%s' "$CURRENT_CONTENT" | tail -c 20)" != "$EXPECTED_CONTENT" ]; then
+        DD_OUTPUT=$(printf '%s' "$EXPECTED_CONTENT" | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) conv=notrunc 2>&1)
+        log_info "$DD_OUTPUT"
         log_info "EEPROM 文件已更新: $EEPROM_FILE"
     else
         log_info "EEPROM 文件无需修改: $EEPROM_FILE"
