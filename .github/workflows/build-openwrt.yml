@@ -116,12 +116,17 @@ jobs:
         log_highlight "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n" 0
         log_info "--------------------------内存信息--------------------------" 0
         log_highlight "已安装内存详细信息：" 0
-        log_highlight "$(sudo lshw -short -C memory | grep GiB) \n" 0
+        ddrminfo="$(sudo lshw -short -C memory | grep GiB) \n"
+        echo -e "$ddrminfo" | while IFS= read -r line; do
+          log_highlight "$line" 0
+        done
         log_info "--------------------------硬盘信息--------------------------" 0
         log_highlight "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" 0
         log_highlight "硬盘信息：" 0
-        log_info "$(df -hT) \n" 0
-
+        hddinfo="$(df -hT) \n"
+        echo -e "$hddinfo" | while IFS= read -r line; do
+          log_highlight "$line" 0
+        done
     - name: 设置环境变量
       run: |
         # 根据触发来源设置环境变量
