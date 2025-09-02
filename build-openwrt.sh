@@ -117,7 +117,7 @@ fi
 
 log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
 cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_info "已加载.config文件"
-
+cd "$SOURCE_DIR"
 make defconfig > /dev/null 2>&1
 }
 
@@ -225,19 +225,18 @@ if [ "$HIGH_POWER_5G" = "true" ]; then
     log_info "设置5G高功率25db"
     rm -f $SOURCE_DIR/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p
     if [ $? -eq 0 ]; then
-    log_info "删除 e2p 成功"
+       log_info "删除 e2p 成功"
     else
-    log_error "删除 e2p 失败"
+       log_error "删除 e2p 失败"
     fi
     EEPROM_FILE="$SOURCE_DIR/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin"
     if [ -f "$EEPROM_FILE" ]; then
-    mkdir -p files/lib/firmware
+       mkdir -p files/lib/firmware
     ln -sf /lib/firmware/MT7981_iPAiLNA_EEPROM.bin files/lib/firmware/e2p
-    log_info "符号链接已创建"
-    ls -l files/lib/firmware/e2p || { log_error "符号链接创建失败"; exit 1; }
+      if test -L "files/lib/firmware/e2p"; then log_info "符号链接已创建"; else log_error "符号链接创建失败"; fi
     else
-    log_error "$EEPROM_FILE 不存在，无法创建符号链接"
-    exit 1
+       log_error "$EEPROM_FILE 不存在，无法创建符号链接"
+      exit 1
     fi
     EEPROM_FILE=$(find $SOURCE_DIR/package -name MT7981_iPAiLNA_EEPROM.bin 2>/dev/null | head -n 1)
     if [ -z "$EEPROM_FILE" ]; then
