@@ -281,25 +281,22 @@ log_info "软件包下载完成！"
 # ======================================================
 # 编译固件
 # 功能: 使用多线程编译OpenWrt固件，仅返回编译结果状态码
-# 返回值: 0表示成功，1表示失败
+# 返回值: 0表示成功
 # ======================================================
 compile_firmware() {
     log_info "开始编译固件（使用$(nproc)线程）..."
     cd "$SOURCE_DIR"
-    ccache -s
     if make -j$(nproc) V=s; then
         log_info "固件编译完成！"
-        ccache -s
         return 0
     else
         log_error "多线程编译失败，尝试单线程编译..."
         if make -j1 V=s; then
             log_info "单线程编译完成！"
-            ccache -s
             return 0
         else
             log_error "固件编译失败！"
-            return 1
+            exit 1
         fi
     fi
 }

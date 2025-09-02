@@ -23,11 +23,11 @@ on:
           - Docker
       lan_ip:
         description: '设置LAN IP地址'
-        required: true
+        required: false
         default: '192.168.3.1'
       default_theme:
         description: '选择默认主题'
-        required: true
+        required: false
         default: 'argon'
         type: choice
         options:
@@ -35,23 +35,23 @@ on:
           - bootstrap
       hostname:
         description: '设置主机名'
-        required: true
+        required: false
         default: 'Rowrt'
       high_power_5g:
         description: '5G高功率25db'
         required: false
-        default: true
-        type: boolean
+        default: 'false'
+        type: string
       ssh:
         description: '通过SSH连接到Actions'
-        required: true
-        default: false
-        type: boolean
+        required: false
+        default: 'false'
+        type: string
       cachewrtbuild_switch:
         description: '缓存加速编译'
-        required: true
-        default: true
-        type: boolean
+        required: false
+        default: 'true'
+        type: string
       # 移除clean_build配置
 
 # 环境变量定义
@@ -66,12 +66,12 @@ env:
   LAN_IP: ${{ github.event.inputs.lan_ip || github.event.client_payload.inputs.lan_ip || '192.168.3.1' }}
   DEFAULT_THEME: ${{ github.event.inputs.default_theme || github.event.client_payload.inputs.default_theme || 'argon' }}
   HOSTNAME: ${{ github.event.inputs.hostname || github.event.client_payload.inputs.hostname || 'Rowrt' }}
-  HIGH_POWER_5G: ${{ github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || false }}
+  HIGH_POWER_5G: ${{ github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || 'false' }}
   BUILD_TYPE: ${{ github.event.inputs.build_type || github.event.client_payload.inputs.build_type || 'Host' }}
   SSH: ${{ github.event.inputs.ssh || github.event.client_payload.inputs.ssh || 'false' }}
   CACHEWRTBUILD_SWITCH: ${{ github.event.inputs.cachewrtbuild_switch || github.event.client_payload.inputs.cachewrtbuild_switch || 'true' }}
   # 上传配置
-  UPLOAD_BIN_DIR: false
+  UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
   UPLOAD_COWTRANSFER: false
   UPLOAD_WETRANSFER: false
@@ -89,6 +89,8 @@ env:
   CCACHE_DIR: ./openwrt/.ccache
   CCACHE_SIZE: 10G
   CCACHE_COMPRESSION_LEVEL: 6
+  DEVICE_NAME: cmcc_rax3000m-emmc
+  KERNEL_VERSION: 6.6
 
 jobs:
   build:
@@ -253,17 +255,6 @@ jobs:
         source ${{ env.WORK_DIR }}/build-openwrt.sh
         prepare_source
 
-    - name: 提取缓存相关变量
-      run: |
-        SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
-        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-        DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
-        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
-        DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
-        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
-        echo "HASH=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
-        echo "CACHE_DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
-
     - name: 加载自定义feeds
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
@@ -275,8 +266,7 @@ jobs:
     - name: 更新并安装feeds
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh
-          update_install_feeds
+          source ${{ env.WORK_DIR }}/build-openwrt.sh &&update_install_feeds
         else
           docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && update_install_feeds'
         fi
@@ -284,8 +274,7 @@ jobs:
     - name: 加载自定义配置
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.WORK_DIR }}/build-openwrt.sh
-          load_custom_config
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_config
         else
           docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && load_custom_config' 
         fi
@@ -353,14 +342,26 @@ jobs:
         } >> "$GITHUB_OUTPUT"
         echo_color z "--已选插件列表--"
         echo_color g "$plugins"
-       
+
+    - name: 提取缓存相关变量
+      run: |
+        SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
+        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
+        DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
+        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
+        DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
+        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
+        echo "HASH=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
+        echo "CACHE_DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+        echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
+        echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
+
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true'
       uses: actions/cache@main
       with:
         key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.HASH }} ${{ env.CACHE_DATE }}
-        restore-keys: |
-            restore-keys: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-
+        restore-keys: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-
         path: |
           ${{ env.SOURCE_DIR }}/.ccache
           ${{ env.SOURCE_DIR }}/staging_dir
@@ -405,11 +406,9 @@ jobs:
       id: compile
       run: |
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          compile_status="$(source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1)"
-          compile_exit_code=$?
+          source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware
         else
-          compile_status="$(docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware 2>&1')"
-          compile_exit_code=$?
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware
         fi
         if [[ $compile_exit_code -ne 0 ]]; then
           exit 1
@@ -417,6 +416,8 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         FILE_DATE="_$(date +"%Y%m%d%H%M")"
         echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
+        grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
+          ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config | head -n 1
 
     - name: 检查编译后磁盘空间
       if: (!cancelled())
@@ -437,7 +438,17 @@ jobs:
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
-        cd ${{ env.SOURCE_DIR }}/bin/targets/*/*
+        WILDCARD_PATH="${{ env.SOURCE_DIR }}/bin/targets/*/*"
+        KNOWN_FIRMWARE_DIR="${{ env.SOURCE_DIR }}/bin/targets/${DEVICE_TARGET}/${DEVICE_SUBTARGET}"
+        WILDCARD_DIRS=$(ls -d "$WILDCARD_PATH" 2>/dev/null)
+        if [ -n "$WILDCARD_DIRS" ] && [ $(echo "$WILDCARD_DIRS" | wc -l) -eq 1 ]; then
+          cd "$WILDCARD_DIRS"
+        elif [ -d "$KNOWN_FIRMWARE_DIR" ]; then
+          echo "成功精准查找固件目录"
+          cd "$KNOWN_FIRMWARE_DIR"
+        else
+          echo "未找到固件目录"
+        fi
         rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null
         echo "整理后的固件文件:"
         ls -lh
@@ -476,20 +487,22 @@ jobs:
       if: env.UPLOAD_RELEASE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
         cat > release.txt <<EOF
-        ### ${DEVICE_TARGET}-immortalwrt 固件
+        ### ${DEVICE_NAME}-immortalwrt 固件
         
         - 后台地址：${{ github.event.inputs.lan_ip }}
         - 登录账号：root
         - 登录密码：无
+        - 设备信息：${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
+        - 设备型号：${{ env.DEVICE_NAME }}
         - Luci版本：24.10
-        - 内核版本：6.6
-        - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '' || '未' }}启用
+        - 内核版本：${{ env.KERNEL_VERSION }}
+        - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '已' || '未' }}启用
         - 默认主题：${{ github.event.inputs.default_theme }}
         - 主机名：${{ github.event.inputs.hostname }}
         
         #### 已选插件列表
         ```
-        ${{ steps.extract_plugins.outputs.plugins }}
+        ${{ steps.extract_plugins.outputs.plugins_list }}
         ```
         
         #### 编译信息
@@ -519,7 +532,7 @@ jobs:
           gh cache delete "$key"
         done
         # 输出缓存状态
-        echo "========cache status========"
+        echo "========缓存状态========"
         echo "ccache: $(du -sh $OPENWRT_PATH/.ccache | cut -f 1)"
         echo "staging: $(du -sh $OPENWRT_PATH/staging_dir | cut -f 1)"
       env:
