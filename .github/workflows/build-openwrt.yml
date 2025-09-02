@@ -103,6 +103,7 @@ jobs:
     - name: 检查服务器性能
       run: |
         echo "当前目录：$PWD"
+        ls -lh
         chmod +x ${{ env.BUILD_SCRIPT }}
         source ${{ env.BUILD_SCRIPT }}
         log_warn "警告" 0
