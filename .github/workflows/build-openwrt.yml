@@ -228,7 +228,7 @@ jobs:
             mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
           fi
           echo_color l "开始复制源码（含隐藏文件）..."
-          cp -a "$SRC_OPENWRT_DIR"/. "$SOURCE_DIR"
+          cp -a "$SRC_OPENWRT_DIR/. "$SOURCE_DIR"
           critical_files=("scripts/feeds" "target/linux" "package")
           for file in "${critical_files[@]}"; do
             check_path="$SOURCE_DIR/$file"
