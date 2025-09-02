@@ -194,14 +194,11 @@ jobs:
         log_info "-----------------" 0
         log_info "开始打包环境变量到容器" 0
         > .env
-        printenv | while IFS='=' read -r var value; do
-          if [[ ! -z "$var" && "$var" != *"_"* && "$var" != "BASH_FUNC_"* && ! "$value" =~ \(.*\) ]]; then
-            echo "$var=$value" >> .env
-          fi
+        printenv | grep -E '^[a-zA-Z0-9_]+=([^\(\)]|$)' | while IFS='=' read -r var value; do
+          echo "$var=$value" >> .env
         done
-        
-        log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         log_info "$(cat .env)" 0
+        log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
         
         docker run -d --name builder \
