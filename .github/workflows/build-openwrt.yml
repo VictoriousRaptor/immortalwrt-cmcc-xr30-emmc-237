@@ -391,6 +391,7 @@ jobs:
  
     - name: 释放Ubuntu磁盘空间
       uses: danshui-git/free-disk-space@main
+      timeout-minutes: 6
       with:
         remove_android: true
         remove_dotnet: true
@@ -398,8 +399,8 @@ jobs:
         remove_tool_cache: true
         remove_swap: true
         remove_docker_image: ${{ github.event.inputs.build_type == 'Host' && 'true' || 'false' }}
-        remove_packages: "azure-cli google google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-* mono-*"
-        remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/local/lib/node_modules /usr/local/share/chromium /var/cache/apt/archives"
+        remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
+        remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/lib/node_modules /usr/local/share/chromium /usr/local/share/powershell"
     - name: 查看清理后磁盘空间
       if: (!cancelled())
       run: |
