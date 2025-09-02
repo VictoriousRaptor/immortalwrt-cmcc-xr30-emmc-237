@@ -111,6 +111,40 @@ jobs:
     - name: 检查代码
       uses: actions/checkout@main
 
+    - name: 设置环境变量
+      run: |
+        # 根据触发来源设置环境变量
+        if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          # 从repository-dispatch事件获取参数
+          echo "REPO_URL=${{ github.event.client_openwrt.repo_url }}" >> $GITHUB_ENV
+          echo "REPO_BRANCH=${{ github.event.client_openwrt.repo_branch }}" >> $GITHUB_ENV
+          echo "COMMIT_HASH=${{ github.event.client_openwrt.commit_hash }}" >> $GITHUB_ENV
+          echo "LAN_IP=${{ github.event.client_openwrt.lan_ip }}" >> $GITHUB_ENV
+          echo "DEFAULT_THEME=${{ github.event.client_openwrt.default_theme }}" >> $GITHUB_ENV
+          echo "HOSTNAME=${{ github.event.client_openwrt.hostname }}" >> $GITHUB_ENV
+          echo "HIGH_POWER_5G=${{ github.event.client_openwrt.high_power_5g }}" >> $GITHUB_ENV
+          echo "SSH=${{ github.event.client_openwrt.ssh }}" >> $GITHUB_ENV
+          echo "CACHEWRTBUILD_SWITCH=${{ github.event.client_openwrt.cachewrtbuild_switch }}" >> $GITHUB_ENV
+          echo "COMMIT_LOGS=${{ github.event.client_openwrt.commit_logs }}" >> $GITHUB_ENV
+          echo "TRIGGER_SOURCE=${{ github.event.client_openwrt.trigger_source }}" >> $GITHUB_ENV
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 从源码更新检测工作流触发，使用传递的参数"
+        else
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 手动触发，使用默认参数或指定参数"
+        fi
+        
+        # 输出当前使用的参数
+        echo "使用的源码仓库: ${{ env.REPO_URL }}"
+        echo "使用的源码分支: ${{ env.REPO_BRANCH }}"
+        if [ -n "${{ env.COMMIT_HASH }}" ]; then
+          echo "触发更新的提交哈希: ${{ env.COMMIT_HASH }}"
+        fi
+        if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
+          echo "触发来源: ${{ env.TRIGGER_SOURCE }}"
+        fi
+        if [ -n "${{ env.COMMIT_LOGS }}" ]; then
+          echo "触发更新的提交日志: ${{ env.COMMIT_LOGS }}"
+        fi
+
     - name: 初始化编译环境（主机模式）
       if: env.BUILD_TYPE == 'Host'
       env:
