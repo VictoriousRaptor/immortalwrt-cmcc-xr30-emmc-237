@@ -99,7 +99,7 @@ fi
 
 # 校验源码完整性
 log_info "校验源码完整性..."
-LOCAL_COMMIT=$(cd "$SOURCE_DIR" && git rev-parse HEAD)
+LOCAL_COMMIT=$(git -C "$SOURCE_DIR" rev-parse HEAD)
 log_info "本地Commit: $LOCAL_COMMIT"
 
 if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
@@ -117,7 +117,7 @@ fi
 
 log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
 cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_info "已加载.config文件"
-cd "$SOURCE_DIR"
+
 make defconfig > /dev/null 2>&1
 }
 
@@ -139,7 +139,6 @@ fi
 # 执行diy-part1.sh并进行错误处理
 if [ -f "$WORK_DIR/$DIY_P1_SH" ]; then
     chmod +x "$WORK_DIR/$DIY_P1_SH" && log_info "执行diy-part1.sh..."
-    cd "$SOURCE_DIR"
     "$WORK_DIR/$DIY_P1_SH"
     if [ $? -ne 0 ]; then
         log_error "diy-part1.sh执行失败！"
@@ -191,7 +190,6 @@ fi
 if [ -f "$WORK_DIR/$DIY_P2_SH" ]; then
     log_info "执行diy-part2.sh..."
     chmod +x "$WORK_DIR/$DIY_P2_SH"
-    cd "$SOURCE_DIR"
     "$WORK_DIR/$DIY_P2_SH"
     if [ $? -ne 0 ]; then
         log_error "diy-part2.sh执行失败！"
@@ -282,51 +280,6 @@ log_info "软件包下载完成！"
 }
 
 # ======================================================
-# 初始化ccache环境（主机和Docker模式共用）
-# 功能: 配置ccache环境变量和参数，提升编译速度
-# ======================================================
-init_ccache() {
-log_info "初始化ccache环境..."
-
-# 设置ccache环境变量 - 确保指向共享目录
-if [ -z "$CCACHE_DIR" ]; then
-    # 优先使用环境变量中的默认值，其次使用源码目录下的.ccache
-    export CCACHE_DIR="${WORKSPACE_OPENWRT_CCACHE:-$SOURCE_DIR/.ccache}"
-fi
-
-log_info "当前CCACHE_DIR: $CCACHE_DIR"
-
-# 创建ccache目录和临时目录
-mkdir -p "$CCACHE_DIR" "$CCACHE_DIR/tmp"
-
-# 设置统一的ccache参数
-cat > "$CCACHE_DIR/ccache.conf" << EOF
-max_size = ${CCACHE_SIZE:-10G}
-compression = true
-compression_level = ${CCACHE_COMPRESSION_LEVEL:-6}
-hash_dir = false
-umask = 002
-temporary_dir = $CCACHE_DIR/tmp
-EOF
-
-# 设置CCACHE变量
-export USE_CCACHE=1
-export CCACHE_COMPRESS=1
-export CCACHE_COMPRESSLEVEL=${CCACHE_COMPRESSION_LEVEL:-6}
-export CCACHE_MAXSIZE=${CCACHE_SIZE:-10G}
-
-# 修复ccache权限 - 统一处理
-if [ -n "$GITHUB_ACTIONS" ] || [ -f "/.dockerenv" ]; then
-    chmod -R 777 "$CCACHE_DIR"
-fi
-
-# 输出ccache状态
-ccache -M ${CCACHE_SIZE:-10G}
-ccache -s
-log_info "ccache环境初始化完成！"
-}
-
-# ======================================================
 # 编译固件
 # 功能: 使用多线程编译OpenWrt固件，仅返回编译结果状态码
 # 返回值: 0表示成功，1表示失败
@@ -334,7 +287,6 @@ log_info "ccache环境初始化完成！"
 compile_firmware() {
     log_info "开始编译固件（使用$(nproc)线程）..."
     cd "$SOURCE_DIR"
-    init_ccache
     ccache -s
     if make -j$(nproc) V=s; then
         log_info "固件编译完成！"
@@ -358,7 +310,7 @@ compile_firmware() {
 # ======================================================
 export -f log_info log_error init_env prepare_source
 load_custom_feeds update_install_feeds load_custom_config
-download_packages compile_firmware init_ccache
+download_packages compile_firmware
 
 # ======================================================
 # 主函数（如果直接运行脚本时使用）
