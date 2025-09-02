@@ -100,6 +100,9 @@ jobs:
     timeout-minutes: 600
 
     steps:
+    - name: 检查代码
+      uses: actions/checkout@main
+
     - name: 检查服务器性能
       run: |
         echo "当前目录：$PWD"
@@ -119,9 +122,6 @@ jobs:
         log_highlight "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" 0
         log_highlight "硬盘信息：" 0
         log_info -e "$(df -hT) \n" 0
-    
-    - name: 检查代码
-      uses: actions/checkout@main
 
     - name: 设置环境变量
       run: |
