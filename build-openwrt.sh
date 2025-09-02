@@ -18,11 +18,9 @@ case "$1" in
     l) local Color="\033[0;36m";; # 青色
     *) local Color="\033[0;0m";;  # 默认色
 esac
-if [ -t 1 ]; then
-    # 如果输出到终端，使用彩色
+if [ "$NO_COLOR" != "true" ]; then
     echo -e "${Color}${2}\033[0m"
 else
-    # 否则输出纯文本（适用于日志文件等）
     echo -e "${2}"
 fi
 }
