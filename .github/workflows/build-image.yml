@@ -139,6 +139,7 @@ jobs:
         run: |
           echo "本地已构建的镜像："
           docker images | grep openwrt-builder
+          LOCAL_IMAGE_TAG="openwrt-builder:${{ env.TIMESTAMP }}"
           echo -e "\n--- 获取源码目录（$SRC_OPENWRT_DIR）详细信息 ---"
           DIR_DETAILS=$(docker run --rm $LOCAL_IMAGE_TAG bash -c "
             set -e
