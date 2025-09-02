@@ -38,7 +38,6 @@ return 1
 init_env() {
 log_info "开始初始化编译环境..."
 # 更新系统并安装依赖
-sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
 sudo -E apt-get -qq update
 sudo -E apt-get -qq install \
     ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison \
