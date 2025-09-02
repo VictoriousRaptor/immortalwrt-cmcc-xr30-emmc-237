@@ -211,7 +211,7 @@ jobs:
                 "hostname": "${{ env.HOSTNAME }}",
                 "high_power_5g": "${{ env.HIGH_POWER_5G }}",
                 "ssh": "${{ env.SSH }}",
-                "cachewrtbuild_switch": "${{ env.CACHEWRTBUILD_SWITCH }}"
+                "cachewrtbuild_switch": "${{ env.CACHEWRTBUILD_SWITCH }}",
                 "repo_url": "${{ env.REPO_URL }}",
                 "repo_branch": "${{ env.REPO_BRANCH }}",  
                 "commit_hash": "${{ env.COMMIT_HASH }}",
