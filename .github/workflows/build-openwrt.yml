@@ -40,18 +40,18 @@ on:
       high_power_5g:
         description: '5G高功率25db'
         required: false
-        default: 'false'
-        type: string
+        default: true
+        type: boolean
       ssh:
         description: '通过SSH连接到Actions'
         required: false
-        default: 'false'
-        type: string
+        default: false
+        type: boolean
       cachewrtbuild_switch:
         description: '缓存加速编译'
         required: false
-        default: 'true'
-        type: string
+        default: true
+        type: boolean
       # 移除clean_build配置
 
 # 环境变量定义
@@ -66,10 +66,10 @@ env:
   LAN_IP: ${{ github.event.inputs.lan_ip || github.event.client_payload.inputs.lan_ip || '192.168.3.1' }}
   DEFAULT_THEME: ${{ github.event.inputs.default_theme || github.event.client_payload.inputs.default_theme || 'argon' }}
   HOSTNAME: ${{ github.event.inputs.hostname || github.event.client_payload.inputs.hostname || 'Rowrt' }}
-  HIGH_POWER_5G: ${{ github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || 'false' }}
+  HIGH_POWER_5G: ${{ github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || false }}
   BUILD_TYPE: ${{ github.event.inputs.build_type || github.event.client_payload.inputs.build_type || 'Host' }}
-  SSH: ${{ github.event.inputs.ssh || github.event.client_payload.inputs.ssh || 'false' }}
-  CACHEWRTBUILD_SWITCH: ${{ github.event.inputs.cachewrtbuild_switch || github.event.client_payload.inputs.cachewrtbuild_switch || 'true' }}
+  SSH: ${{ github.event.inputs.ssh || github.event.client_payload.inputs.ssh || false }}
+  CACHEWRTBUILD_SWITCH: ${{ github.event.inputs.cachewrtbuild_switch || github.event.client_payload.inputs.cachewrtbuild_switch || true }}
   # 上传配置
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
@@ -186,7 +186,9 @@ jobs:
           } \
         }')
         echo_color b "本次镜像的标签："
-        echo_color g "$FILTERED_TAGS"
+        echo -e "$FILTERED_TAGS" | while IFS= read -r line; do
+          echo_color g "$line"
+        done
         echo_color b "-----------------"
         echo_color l "开始打包环境变量到容器"
         while IFS='=' read -r var value; do
@@ -246,7 +248,7 @@ jobs:
           echo_color l "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
           cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && echo_color g "已加载.config文件"
           cd "$SOURCE_DIR"
-          //暂时移除输出重定向以便查看错误信息
+          # 暂时移除输出重定向以便查看错误信息
           make defconfig
         '
 
@@ -282,7 +284,7 @@ jobs:
       
     - name: SSH远程连接（make menuconfig）
       uses: rogueme/debugger-action@main
-      if: (env.SSH == 'true') || contains(github.event.action, 'ssh')
+      if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -290,8 +292,8 @@ jobs:
         TIMEOUT_MIN: 360
           
     - name: 同步.config（仅SSH模式）
-      if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
-      run: |
+      if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
+      run:
         echo_color() {
         case "$1" in
             r) local Color="\033[0;31m";; # 红色
@@ -313,7 +315,7 @@ jobs:
             echo_color y ".config未修改，无需上传"
         else
             git add "$CONFIG_FILE"
-            git commit -m "自动同步SSH修改的.config（Actions #${GITHUB_RUN_NUMBER}）"
+            git commit -m "自动同步SSH修改的.config（Actions ${GITHUB_RUN_NUMBER}）"
             git push "https://${github_token}@github.com/${github_repository}.git" "${github_ref}"
             echo_color g ".config已上传"
         fi
@@ -360,7 +362,7 @@ jobs:
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
     - name: 缓存加速编译
-      if: env.CACHEWRTBUILD_SWITCH == 'true'
+      if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
       uses: actions/cache@main
       with:
         key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.HASH }} ${{ env.CACHE_DATE }}
@@ -370,8 +372,8 @@ jobs:
           ${{ env.SOURCE_DIR }}/staging_dir
 
     - name: 刷新缓存
-      if: env.CACHEWRTBUILD_SWITCH == 'true'
-      run: |
+      if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
+      run:
         if [ -d "${{ env.SOURCE_DIR }}/staging_dir" ]; then
           find "${{ env.SOURCE_DIR }}/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
               find "$dir" -type f -exec touch {} +

@@ -205,13 +205,13 @@ jobs:
             "event_type": "镜像更新触发自动编译固件",
             "client_payload": {
               "inputs": {
-                "build_type": "${{ env.BUILD_TYPE }}",
+                "build_type": ${{ env.BUILD_TYPE }},
                 "lan_ip": "${{ env.LAN_IP }}",
                 "default_theme": "${{ env.DEFAULT_THEME }}",
                 "hostname": "${{ env.HOSTNAME }}",
-                "high_power_5g": "${{ env.HIGH_POWER_5G }}",
-                "ssh": "${{ env.SSH }}",
-                "cachewrtbuild_switch": "${{ env.CACHEWRTBUILD_SWITCH }}",
+                "high_power_5g": ${{ env.HIGH_POWER_5G }},
+                "ssh": ${{ env.SSH }},
+                "cachewrtbuild_switch": ${{ env.CACHEWRTBUILD_SWITCH }},
                 "repo_url": "${{ env.REPO_URL }}",
                 "repo_branch": "${{ env.REPO_BRANCH }}",  
                 "commit_hash": "${{ env.COMMIT_HASH }}",
