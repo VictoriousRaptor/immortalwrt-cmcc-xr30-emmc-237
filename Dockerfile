@@ -71,24 +71,27 @@ RUN set -e && \
     echo "远程最新Commit: $REMOTE_COMMIT" && \
     echo "=== 开始拉取源码 ===" && \
     rm -rf $SRC_OPENWRT_DIR && \
+    mkdir -p $SRC_OPENWRT_DIR && \
     for i in {1..3}; do \
-        git clone --depth 1 --single-branch -b $REPO_BRANCH $REPO_URL $SRC_OPENWRT_DIR && break; \
-        echo "克隆失败，重试第$i次..." && sleep 5; \
+        echo "尝试第$i次克隆..." && \
+        git clone --depth 1 --single-branch -b $REPO_BRANCH $REPO_URL $SRC_OPENWRT_DIR 2>&1 && break || \
+        echo "克隆失败，${i}秒后重试..." && sleep 5; \
     done && \
     # 校验源码完整性
     if [ ! -d "$SRC_OPENWRT_DIR/.git" ]; then \
         echo "❌ 源码克隆失败，未找到.git目录" && exit 1; \
     fi && \
     echo "=== 校验源码完整性 ===" && \
-    LOCAL_COMMIT=$(cd $SRC_OPENWRT_DIR && git rev-parse HEAD) && \
+    LOCAL_COMMIT=$(cd $SRC_OPENWRT_DIR && git rev-parse HEAD 2>&1) && \
     echo "本地Commit: $LOCAL_COMMIT" && \
-    if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then \
+    if [ -z "$LOCAL_COMMIT" ] || [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then \
         echo "❌ 源码哈希不一致 (本地: $LOCAL_COMMIT, 远程: $REMOTE_COMMIT)" && exit 1; \
     fi && \
     # 检查源码体积
-    SRC_SIZE_MB=$(du -sm $SRC_OPENWRT_DIR | awk '{print $1}') && \
+    echo "=== 检查源码体积 ===" && \
+    SRC_SIZE_MB=$(du -sm $SRC_OPENWRT_DIR 2>&1 | awk '{print $1}') && \
     echo "源码体积: $SRC_SIZE_MB MB" && \
-    if [ $SRC_SIZE_MB -lt $MIN_SRC_SIZE_MB ]; then \
+    if [ -z "$SRC_SIZE_MB" ] || [ $SRC_SIZE_MB -lt $MIN_SRC_SIZE_MB ]; then \
         echo "❌ 源码体积过小 ($SRC_SIZE_MB MB < $MIN_SRC_SIZE_MB MB)，可能不完整" && exit 1; \
     fi && \
     # 优化git仓库以减小体积
