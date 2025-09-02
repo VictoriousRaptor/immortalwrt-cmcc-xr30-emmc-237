@@ -333,13 +333,17 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ]; then
         exit 1
     fi
     EXPECTED_CONTENT=$(printf '\x2B%.0s' {1..20})
-    CURRENT_CONTENT=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
-    if [ $? -ne 0 ]; then
-    log_error "读取EEPROM文件失败: $EEPROM_FILE"
+    CURRENT_CONTENT_RAW=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
+    READ_EXIT_CODE=$?
+    if [ $READ_EXIT_CODE -ne 0 ]; then
+        log_error "读取EEPROM文件失败: $EEPROM_FILE"
     fi
-    if [ "$(printf '%s' "$CURRENT_CONTENT" | tail -c 20)" != "$EXPECTED_CONTENT" ]; then
-        DD_OUTPUT=$(printf '%s' "$EXPECTED_CONTENT" | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) conv=notrunc 2>&1)
-        log_info "$DD_OUTPUT"
+    ACTUAL_EEPROM_DATA=$(printf '%s' "$CURRENT_CONTENT_RAW" | tail -c 20)
+    if [ "$ACTUAL_EEPROM_DATA" != "$EXPECTED_CONTENT" ]; then
+        DD if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
+        printf '%s' "$DD_WRITE_OUTPUT" | while IFS= read -r line; do
+            [ -n "$line" ] && log_info "$line"
+        done
         log_info "EEPROM 文件已更新: $EEPROM_FILE"
     else
         log_info "EEPROM 文件无需修改: $EEPROM_FILE"
