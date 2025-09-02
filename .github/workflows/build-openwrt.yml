@@ -373,7 +373,7 @@ jobs:
 
     - name: 刷新缓存
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
-      run:
+      run: |
         if [ -d "${{ env.SOURCE_DIR }}/staging_dir" ]; then
           find "${{ env.SOURCE_DIR }}/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r dir; do
               find "$dir" -type f -exec touch {} +
