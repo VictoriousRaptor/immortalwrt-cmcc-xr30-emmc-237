@@ -187,7 +187,7 @@ jobs:
         echo_color b "-----------------"
         echo_color l "开始打包环境变量到容器"
         while IFS='=' read -r var value; do
-          echo "$var=\"$value\"" >> .env
+          echo "$var=$value" >> .env
         done <<< "$(printenv)"
         echo_color l "环境变量打包完成"
         docker pull "${{ env.DOCKER_IMAGE }}"
