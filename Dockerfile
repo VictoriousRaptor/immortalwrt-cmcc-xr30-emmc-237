@@ -9,6 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     FORCE_UNSAFE_CONFIGURE=1 \
     REPO_URL=https://github.com/padavanonly/immortalwrt-mt798x-6.6 \
     REPO_BRANCH=openwrt-24.10-6.6 \
+    DEFAULT_DIR=/opt/build \
     SRC_OPENWRT_DIR=/opt/openwrt \
     MIN_SRC_SIZE_MB=150
 
@@ -42,6 +43,8 @@ RUN set -e && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     mkdir -p $SRC_OPENWRT_DIR && \
     chmod 777 $SRC_OPENWRT_DIR && \
+    mkdir -p $DEFAULT_DIR && \
+    chmod 777 $DEFAULT_DIR && \
     echo "=== 获取远程源码哈希: $REPO_URL ($REPO_BRANCH) ===" && \
     REMOTE_COMMIT=$(git ls-remote $REPO_URL $REPO_BRANCH | awk '{print $1}') && \
     if [ -z "$REMOTE_COMMIT" ]; then \
@@ -73,4 +76,4 @@ RUN set -e && \
     echo "=== 源码克隆及校验完成，体积: $(du -sh $SRC_OPENWRT_DIR | cut -f1) ==="
 
 # 工作目录
-WORKDIR $SRC_OPENWRT_DIR
+WORKDIR $DEFAULT_DIR

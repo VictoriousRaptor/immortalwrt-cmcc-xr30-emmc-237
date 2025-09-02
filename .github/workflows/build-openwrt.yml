@@ -77,14 +77,14 @@ env:
   UPLOAD_WETRANSFER: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
-  WORK_DIR: ${{ github.workspace }}
-  SOURCE_DIR: ${{ github.workspace }}/openwrt
+  WORK_DIR: .
+  SOURCE_DIR: ./openwrt
   # Docker相关配置
   DOCKER_IMAGE: ghcr.io/${{ github.repository_owner }}/openwrt-builder:latest
-  CONTAINER_RAW_SRC_DIR: /opt/openwrt
+  SRC_OPENWRT_DIR: /opt/openwrt # 容器内置源码目录
   GITHUB_RUN_NUMBER: ${{ github.run_number }}
   # 新增缓存相关变量
-  CCACHE_DIR: ${{ github.workspace }}/openwrt/.ccache
+  CCACHE_DIR: ./openwrt/.ccache
   CCACHE_SIZE: 10G
   CCACHE_COMPRESSION_LEVEL: 6
 
@@ -191,14 +191,11 @@ jobs:
         echo_color l "环境变量打包完成"
         docker pull "${{ env.DOCKER_IMAGE }}"
         
-        mkdir -p "$CCACHE_DIR"
-        
         docker run -d --name builder \
           --env-file .env \
           -v "$PWD":"${{ env.WORK_DIR }}":rw \
           -e TZ="${{ env.TZ }}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
-          -e CCACHE_DIR="${{ env.CCACHE_DIR }}" \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
         echo_color z -e "\n=== 验证容器运行状态 ==="
         docker ps -a | grep builder
@@ -208,9 +205,6 @@ jobs:
           exit 1
         fi
         echo_color g "✅ 容器运行正常"
-        
-        # 修复ccache权限
-        docker exec builder chmod -R 777 "$CCACHE_DIR"
         
         echo -e "\n=== 迁移预置源码到共享目录 ==="
         docker exec builder bash -c '
@@ -233,7 +227,7 @@ jobs:
             mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
           fi
           echo_color l "开始复制源码（含隐藏文件）..."
-          cp -a "$CONTAINER_RAW_SRC_DIR"/. "$SOURCE_DIR"
+          cp -a "$SRC_OPENWRT_DIR"/. "$SOURCE_DIR"
           critical_files=("scripts/feeds" "target/linux" "package")
           for file in "${critical_files[@]}"; do
             check_path="$SOURCE_DIR/$file"
@@ -243,7 +237,7 @@ jobs:
             fi
           done
           echo_color g "✅ 预置源码迁移完成"
-          echo_color l "  - 从：$CONTAINER_RAW_SRC_DIR"
+          echo_color l "  - 从：$SRC_OPENWRT_DIR"
           echo_color l "  - 到：""$SOURCE_DIR"
           echo_color l "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")"
           cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && echo_color g "已加载.config文件"
