@@ -91,6 +91,7 @@ env:
   CCACHE_COMPRESSION_LEVEL: 6
   DEVICE_NAME: cmcc_rax3000m-emmc
   KERNEL_VERSION: 6.6
+  LUCI_VERSION: 24.10
 
 jobs:
   build:
@@ -414,7 +415,7 @@ jobs:
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
           source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware
         else
-          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware
+          docker exec builder bash -c 'source ${{ env.WORK_DIR }}/build-openwrt.sh && compile_firmware'
         fi
         if [[ $compile_exit_code -ne 0 ]]; then
           exit 1
@@ -422,8 +423,15 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         FILE_DATE="_$(date +"%Y%m%d%H%M")"
         echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
-        grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
-          ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config | head -n 1
+        echo "当前目录：$PWD"
+        EXTRACTED_LUCI_VERSION=$(grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
+        ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
+        LUCI_VERSION=${EXTRACTED_LUCI_VERSION:-${{ env.LUCI_VERSION }}}
+        echo "LUCI_VERSION=${LUCI_VERSION}" >> $GITHUB_ENV
+        EXTRACTED_KERNEL_VERSION=$(grep -oP 'CONFIG_LINUX_VERSION="\K[0-9]+\.[0-9]+\.[0-9]+' \
+        ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
+        KERNEL_VERSION=${EXTRACTED_KERNEL_VERSION:-${{ env.KERNEL_VERSION }}}
+        echo "KERNEL_VERSION=${KERNEL_VERSION}" >> $GITHUB_ENV
 
     - name: 检查编译后磁盘空间
       if: (!cancelled())
@@ -500,7 +508,7 @@ jobs:
         - 登录密码：无
         - 设备信息：${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
         - 设备型号：${{ env.DEVICE_NAME }}
-        - Luci版本：24.10
+        - Luci版本：${{ env.LUCI_VERSION }}
         - 内核版本：${{ env.KERNEL_VERSION }}
         - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '已' || '未' }}启用
         - 默认主题：${{ github.event.inputs.default_theme }}
