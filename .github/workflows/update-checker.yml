@@ -101,7 +101,7 @@ jobs:
             echo "上次提交哈希: ${LAST_HASH}"
             
             if [ "${CURRENT_HASH}" = "${LAST_HASH}" ]; then
-              echo "哈希值相同，源码无更新"
+              echo "哈希值相同，源码无更新，无需触发镜像构建"
               echo "hasUpdate=false" >> ${GITHUB_OUTPUT}
             else
               echo "哈希值不同，检测到源码更新！"
@@ -111,22 +111,6 @@ jobs:
             echo "首次运行，无历史哈希记录，视为有更新"
             echo "hasUpdate=true" >> ${GITHUB_OUTPUT}
           fi
-
-      # 步骤4：无更新时输出提示
-      - name: 输出无更新提示
-        if: steps.compareHash.outputs.hasUpdate == 'false'
-        run: |
-          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 当前提交与上次检测一致"
-          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 源码无更新，无需触发镜像构建"
-
-      # 步骤5：有更新时保存新哈希（供下次对比）
-      - name: 保存新提交哈希
-        if: steps.compareHash.outputs.hasUpdate == 'true'
-        run: |
-          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 检测到源码新提交"
-          # 将新哈希写入文件，用于下次缓存对比
-          echo ${{ steps.getCommitInfo.outputs.commitHash }} > .commitHash
-          echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
 
       # 步骤6：有更新时触发镜像构建工作流
       - name: 触发构建镜像
@@ -168,6 +152,9 @@ jobs:
             echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_url')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_hash')"
             echo "  - 更新日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_logs')"
+            # 将新哈希写入文件，用于下次缓存对比
+            echo ${{ steps.getCommitInfo.outputs.commitHash }} > .commitHash
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
           else
             echo "❌ 构建容器工作流触发失败！"
             echo "错误信息: $RESPONSE"
