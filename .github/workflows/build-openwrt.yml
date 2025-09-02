@@ -122,7 +122,7 @@ jobs:
         done
         log_info "--------------------------硬盘信息--------------------------" 0
         log_highlight "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" 0
-        log_highlight "硬盘信息：" 0
+        log_info "硬盘信息：" 0
         hddinfo="$(df -hT) \n"
         echo -e "$hddinfo" | while IFS= read -r line; do
           log_highlight "$line" 0
@@ -187,16 +187,17 @@ jobs:
             print $1 \
           } \
         }')
-        echo_color b "本次镜像的标签："
+        log_info "本次镜像的标签：" 0
         echo -e "$FILTERED_TAGS" | while IFS= read -r line; do
-          echo_color g "$line"
+          log_highlight "$line" 0
         done
-        echo_color b "-----------------"
-        echo_color l "开始打包环境变量到容器"
+        log_info "-----------------" 0
+        log_info "开始打包环境变量到容器" 0
         while IFS='=' read -r var value; do
           echo "$var=$value" >> .env
         done <<< "$(printenv)"
-        echo_color l "环境变量打包完成"
+        log_info "环境变量打包完成" 0
+        log_info "$(cat .env)" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
         
         docker run -d --name builder \
