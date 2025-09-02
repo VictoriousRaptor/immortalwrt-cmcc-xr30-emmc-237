@@ -195,7 +195,7 @@ jobs:
         log_info "开始打包环境变量到容器" 0
         > .env
         printenv | grep -E '^[a-zA-Z0-9_]+=([^\(\)]|$)' | while IFS='=' read -r var value; do
-          log_info "环境变量：var：$var|value：$value" 0
+          # log_info "环境变量：var：$var|value：$value" 0
           echo "$var=$value" >> .env
         done
         log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
@@ -505,7 +505,7 @@ jobs:
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
-        - 后台地址：${{ github.event.inputs.lan_ip }}
+        - 后台地址：${{ env.LAN_IP }}
         - 登录账号：root
         - 登录密码：无
         - 设备信息：${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
@@ -513,8 +513,8 @@ jobs:
         - Luci版本：${{ env.LUCI_VERSION }}
         - 内核版本：${{ env.KERNEL_VERSION }}
         - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '已' || '未' }}启用
-        - 默认主题：${{ github.event.inputs.default_theme }}
-        - 主机名：${{ github.event.inputs.hostname }}
+        - 默认主题：${{ env.DEFAULT_THEME }}
+        - 主机名：${{ env.HOSTNAME }}
         
         #### 已选插件列表
         ```
@@ -522,7 +522,7 @@ jobs:
         ```
         
         #### 编译信息
-        - 编译方式：${{ github.event.inputs.build_type }}
+        - 编译方式：${{ env.BUILD_TYPE }}
         - 源码URL：${REPO_URL}
         - 源码分支：${REPO_BRANCH}
         - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
