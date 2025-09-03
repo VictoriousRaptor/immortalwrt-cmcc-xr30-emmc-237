@@ -144,7 +144,8 @@ jobs:
           echo "CACHEWRTBUILD_SWITCH=${{ github.event.client_payload.cachewrtbuild_switch }}" >> $GITHUB_ENV
           echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
           echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
-          log_info "从源码更新检测工作流触发，使用传递的参数"
+          log_highlight "从源码更新检测工作流触发，使用传递的参数"
+          cat github.event.client_payload
         else
           log_highlight "手动触发，使用默认参数或指定参数" 1
         fi
@@ -346,7 +347,7 @@ jobs:
         - 设备型号：${{ env.DEVICE_NAME }}
         - Luci版本：${{ env.LUCI_VERSION }}
         - 内核版本：${{ env.KERNEL_VERSION }}
-        - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '已' || '未' }}启用
+        - 5G高功率25db：$( [[ "${{ env.HIGH_POWER_5G }}" =~ ^['"]?true['"]?$ ]] && echo "已" || echo "未" )启用
         - 默认主题：${{ env.DEFAULT_THEME }}
         - 主机名：${{ env.HOSTNAME }}
         
