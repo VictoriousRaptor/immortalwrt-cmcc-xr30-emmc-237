@@ -3,7 +3,7 @@ name: 构建集成固件Docker镜像
 on:
   workflow_dispatch:  # 手动触发
   repository_dispatch:  
-    types: [固件源码更新构建镜像]
+    types: [固件源码更新触发构建镜像]
 
 env:
   # 基础环境变量
@@ -17,7 +17,7 @@ env:
   HIGH_POWER_5G: true
   SSH: false
   CACHEWRTBUILD_SWITCH: true
-  TRIGGER_SOURCE: '构建镜像触发编译固件'
+  TRIGGER_SOURCE: '构建镜像工作流'
 
 jobs:
   build-and-push:
@@ -200,7 +200,7 @@ jobs:
           echo "=== 开始触发编译固件工作流 ==="
           BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
-            "event_type": "镜像更新触发自动编译固件",
+            "event_type": "构建镜像触发自动编译固件",
             "client_payload": {
               "inputs": {
                 "build_type": "${BUILD_TYPE}",
@@ -214,7 +214,7 @@ jobs:
                 "repo_branch": "${REPO_BRANCH}",  
                 "commit_hash": "${COMMIT_HASH}",
                 "commit_logs": "${COMMIT_LOGS}",
-                "trigger_source": "${TRIGGER_SOURCE}"   
+                "trigger_source": "${TRIGGER_SOURCE}>构建镜像触发自动编译"
               }
             }
           }
@@ -230,18 +230,18 @@ jobs:
           if [ $? -eq 0 ]; then
             echo "✅ 编译固件工作流已成功触发"
             echo "触发参数:"
-            echo "  - repo_url: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_url')"
-            echo "  - repo_branch: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"
-            echo "  - commit_hash: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
-            echo "  - commit_logs: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
-            echo "  - trigger_source: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.trigger_source')"
-            echo "  - build_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.build_type')"
-            echo "  - lan_ip: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.lan_ip')"
-            echo "  - default_theme: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.default_theme')"
-            echo "  - high_power_5g: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.high_power_5g')"
-            echo "  - hostname: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.hostname')"
-            echo "  - ssh: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.ssh')"
-            echo "  - cachewrtbuild_switch: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.cachewrtbuild_switch')"
+            echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_url')"
+            echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"
+            echo "  - 编译类型: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.build_type')"
+            echo "  - 本地IP: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.lan_ip')"
+            echo "  - 默认主题: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.default_theme')"
+            echo "  - 主机名: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.hostname')"
+            echo "  - 高功率5G: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.high_power_5g')"
+            echo "  - SSH连接: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.ssh')"
+            echo "  - 缓存编译: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.cachewrtbuild_switch')"
+            echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
+            echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
+            echo "  - 触发源: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.trigger_source')"
           else
             echo "❌ 编译固件工作流触发失败！"
             echo "错误信息: $RESPONSE"

@@ -124,13 +124,13 @@ jobs:
           echo "=== 开始触发构建容器工作流 ==="
           BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
-            "event_type": "固件源码更新构建镜像",
+            "event_type": "固件源码更新触发构建镜像",
             "client_payload": {
               "repo_url": "${{ env.REPO_URL }}",
               "repo_branch": "${{ env.REPO_BRANCH }}",
               "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
               "commit_logs": "${{ steps.getCommitInfo.outputs.commitLogs }}",
-              "trigger_source": "固件源码更新构建镜像"
+              "trigger_source": "固件源码更新>触发构建镜像"
             }
           }
           EOF
@@ -150,7 +150,7 @@ jobs:
             echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_url')"
             echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_branch')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_hash')"
-            echo "  - 更新日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_logs')"
+            echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_logs')"
             # 将新哈希写入文件，用于下次缓存对比
             echo ${{ steps.getCommitInfo.outputs.commitHash }} > .commitHash
             echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
