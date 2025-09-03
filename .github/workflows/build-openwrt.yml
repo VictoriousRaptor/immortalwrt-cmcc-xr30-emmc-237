@@ -322,7 +322,7 @@ jobs:
         source "${{ env.BUILD_SCRIPT }}"
         cd "$SOURCE_DIR"
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
-          awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
+          awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
         {
           echo "PLUGINS_LIST<<EOF"
