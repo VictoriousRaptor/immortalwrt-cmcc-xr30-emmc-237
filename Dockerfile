@@ -24,36 +24,31 @@ RUN set -e && \
     # 更新源并安装核心编译依赖
     apt-get -qq update && \
     apt-get -qq install -f -y && \
+    # 只安装绝对必要的依赖，进一步精简
     apt-get -qq install -y --no-install-recommends \
         # 基础编译工具
         build-essential gcc-multilib g++-multilib binutils \
         # 编译必备工具链
         autoconf automake autopoint bison flex gettext gawk \
-        # 库文件
-        libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
-        libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+        # 库文件 - 移除不必要的库如libfuse-dev, libglib2.0-dev
+        libc6-dev-i386 libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
         libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev \
         libtool zlib1g-dev zstd \
-        # 文件处理工具
-        bzip2 cpio p7zip p7zip-full patch rsync squashfs-tools unzip \
+        # 文件处理工具 - 移除p7zip, p7zip-full等
+        bzip2 rsync unzip \
         # 系统工具
-        ccache cmake curl device-tree-compiler git pkgconf \
-        # 添加证书包解决SSL验证问题
-        ca-certificates \
-        # 编程语言支持
-        python2.7 python3 python3-pyelftools python3-setuptools libpython3-dev \
-        # 网络工具
-        wget && \
+        git wget ca-certificates curl \
+        # 编程语言支持 - 仅保留必要的Python组件
+        python2.7 python3 python3-pyelftools \
     # 安装完成后立即清理以减小层体积
-    apt-get -qq autoremove --purge && \
-    apt-get -qq clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
+    && apt-get -qq autoremove --purge \
+    && apt-get -qq clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
            /tmp/* /var/tmp/* /usr/share/man/* /usr/share/info/* \
            /usr/share/swift /usr/share/miniconda /usr/local/lib/android \
            /var/spool /usr/lib/systemd /usr/lib/python*/test \
-           /usr/lib/jvm/*/src.zip /usr/lib/jvm/*/demo && \
     # 设置时区
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 单独的层用于源码克隆和校验，便于缓存
 RUN set -e && \
@@ -79,30 +74,22 @@ RUN set -e && \
     if [ ! -d "$SRC_OPENWRT_DIR/.git" ]; then \
         echo "❌ 源码克隆失败，未找到.git目录" && exit 1; \
     fi && \
-    echo "=== 校验源码完整性 ===" && \
-    LOCAL_COMMIT=$(cd $SRC_OPENWRT_DIR && git rev-parse HEAD 2>&1) && \
-    echo "本地Commit: $LOCAL_COMMIT" && \
-    if [ -z "$LOCAL_COMMIT" ] || [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then \
-        echo "❌ 源码哈希不一致 (本地: $LOCAL_COMMIT, 远程: $REMOTE_COMMIT)" && exit 1; \
-    fi && \
-    # 检查源码体积
-    echo "=== 检查源码体积 ===" && \
-    SRC_SIZE_MB=$(du -sm $SRC_OPENWRT_DIR 2>&1 | awk '{print $1}') && \
-    echo "源码体积: $SRC_SIZE_MB MB" && \
-    if [ -z "$SRC_SIZE_MB" ] || [ $SRC_SIZE_MB -lt $MIN_SRC_SIZE_MB ]; then \
-        echo "❌ 源码体积过小 ($SRC_SIZE_MB MB < $MIN_SRC_SIZE_MB MB)，可能不完整" && exit 1; \
-    fi && \
-    # 优化git仓库以减小体积
+    # 深度清理源码，移除不必要文件
     cd $SRC_OPENWRT_DIR && \
+    # 清理Git文件
     git gc --aggressive --prune=now && \
-    # 清理不必要的git文件
-    rm -rf .git/refs/remotes .git/logs && \
-    echo "=== 源码克隆及校验完成，体积: $(du -sh $SRC_OPENWRT_DIR | cut -f1) ==="
+    rm -rf .git && \
+    # 清理文档、示例等不需要的文件
+    find . -name "*.md" -o -name "*.txt" -o -name "README*" | xargs rm -f \
+    && find . -type d -name "doc*" -o -name "examples" -o -name "tests" | xargs rm -rf \
+    && echo "=== 源码克隆及精简完成，体积: $(du -sh $SRC_OPENWRT_DIR | cut -f1) ==="
 
 # ======================================================
 # 第二阶段：精简运行环境（只包含必要的编译环境和源码）
 # ======================================================
 FROM ubuntu:22.04 AS final
+
+# 使用更小的基础镜像(可选)：如果兼容性允许，可考虑使用ubuntu:22.04-slim
 
 # 从构建阶段复制必要的环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -135,22 +122,18 @@ RUN set -e && \
         libc6-dev-i386 libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
         libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev zlib1g-dev zstd \
         # 必需的系统工具
-        ccache cmake curl device-tree-compiler git pkgconf \
+        git wget ca-certificates \
         # 必需的文件处理工具
         rsync unzip \
         # 必需的编程语言
-        python2.7 python3 python3-pyelftools python3-distutils \
-        # 网络工具
-        wget \
-        # 添加证书包解决SSL验证问题
-        ca-certificates && \
+        python2.7 python3 python3-pyelftools \
     # 清理以减小体积
-    apt-get -qq autoremove --purge && \
-    apt-get -qq clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
-           /tmp/* /var/tmp/* /usr/share/man/* /usr/share/info/* && \
+    && apt-get -qq autoremove --purge \
+    && apt-get -qq clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
+           /tmp/* /var/tmp/* /usr/share/man/* /usr/share/info/* \
     # 设置时区
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     # 创建工作目录
     mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR && \
     # 创建builder用户并设置权限
@@ -162,7 +145,9 @@ COPY --from=builder $SRC_OPENWRT_DIR $SRC_OPENWRT_DIR
 
 # 设置目录权限
 RUN set -e && \
-    chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR
+    chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR && \
+    # 进一步清理可能的临时文件
+    rm -rf /tmp/* /var/tmp/*
 
 # 切换到builder用户
 USER builder

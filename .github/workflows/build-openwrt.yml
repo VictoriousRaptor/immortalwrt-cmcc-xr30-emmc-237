@@ -191,6 +191,10 @@ jobs:
         echo -e "$FILTERED_TAGS" | while IFS= read -r line; do
           log_highlight "$line" 0
         done
+        CURRENT_UID=$(id -u)
+        CURRENT_GID=$(id -g)
+        echo "CURRENT_USER_ID=$CURRENT_UID" >> $GITHUB_ENV
+        echo "CURRENT_GROUP_ID=$CURRENT_GID" >> $GITHUB_ENV
         log_info "-----------------" 0
         log_info "开始打包环境变量到容器" 0
         > .env
@@ -200,9 +204,7 @@ jobs:
         done
         log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
-        CURRENT_UID=$(id -u)
-        CURRENT_GID=$(id -g)
-        echo "当前用户ID: $CURRENT_UID, 组ID: $CURRENT_GID" >> $GITHUB_ENV
+        log_info "当前用户ID: $CURRENT_UID, 组ID: $CURRENT_GID" 0
         docker run -d --name builder \
           --user $CURRENT_UID:$CURRENT_GID \
           --env-file .env \
