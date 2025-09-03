@@ -201,6 +201,7 @@ if [ $SRC_SIZE_MB -lt $min_src_size_mb ]; then
 fi
 
 log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
+rm -rf "$SOURCE_DIR/.config"
 cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_info "已加载.config文件"
 cd "$SOURCE_DIR"
 # make olddefconfig > /dev/null 2>&1

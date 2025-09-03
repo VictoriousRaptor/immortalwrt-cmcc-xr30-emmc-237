@@ -181,6 +181,7 @@ jobs:
         cd "${{ env.WORK_DIR }}"
         source ${{ env.BUILD_SCRIPT }}
         init_env
+        prepare_source
 
     - name: Docker环境初始化
       if: env.BUILD_TYPE == 'Docker'
@@ -235,35 +236,31 @@ jobs:
         log_separator "迁移预置源码到共享目录" 0
         docker exec builder bash -c '
           source ${{ env.BUILD_SCRIPT }}
-          if [ -d "$SOURCE_DIR" ]; then
+          if [ -d "${SOURCE_DIR}" ]; then
             log_warn "清理共享目录旧内容：$SOURCE_DIR" 1
-            rm -rf "$SOURCE_DIR"/* "$SOURCE_DIR"/.* 2>/dev/null
+            rm -rf "${SOURCE_DIR}"/* "${SOURCE_DIR}"/.* 2>/dev/null
           else
-            mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
+            mkdir -p "${SOURCE_DIR}" && chmod 777 "${SOURCE_DIR}"
           fi
           log_info "开始复制源码（含隐藏文件）..." 1
           cp -a "${SRC_OPENWRT_DIR}/." "${SOURCE_DIR}"
           critical_files=("scripts/feeds" "target/linux" "package")
           for file in "${critical_files[@]}"; do
-            check_path="$SOURCE_DIR/$file"
+            check_path="${SOURCE_DIR}/$file"
             if [ ! -e "$check_path" ]; then
               log_error "迁移失败：共享目录缺失关键文件 $check_path" 1
               exit 1
             fi
           done
           log_success "预置源码迁移完成" 1
-          log_highlight "  - 从：$SRC_OPENWRT_DIR" 1
-          log_highlight "  - 到：""$SOURCE_DIR" 1
-          log_highlight "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")" 1
-          cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_success "已加载.config文件" 1
-          cd "$SOURCE_DIR"
+          log_highlight "  - 从：${SRC_OPENWRT_DIR}" 1
+          log_highlight "  - 到：${SOURCE_DIR}" 1
+          log_highlight "共享目录源码体积：$(du -sh "${SOURCE_DIR}" | awk "{print \$1}")" 1
+          rm -rf "${SOURCE_DIR}/.config"
+          cp -f "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config" && log_success "已加载.config文件" 1
+          cd "${SOURCE_DIR}"
           # make olddefconfig > /dev/null 2>&1
         '
-
-    - name: Host克隆源码
-      if: env.BUILD_TYPE == 'Host'
-      run: |
-        source ${{ env.BUILD_SCRIPT }} && prepare_source
 
     - name: 加载自定义feeds
       run: |
@@ -324,12 +321,10 @@ jobs:
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
           awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
-        {
-          echo "PLUGINS_LIST<<EOF"
-          echo "$plugins"
-          echo "EOF"
-        } >> "$GITHUB_ENV"
-        ${PLUGINS_LIST}
+        echo "PLUGINS_LIST_B64=$(echo -n "$plugins" | base64 -w 0)" >> "$GITHUB_ENV"
+        echo "PLUGINS_LIST<<EOF" >> "$GITHUB_ENV"
+        echo -n "$plugins" >> "$GITHUB_ENV"
+        echo "EOF" >> "$GITHUB_ENV"
         log_info "--已选插件列表--" 0
         echo -e "$plugins" | while IFS= read -r line; do
           log_highlight "$line" 0
@@ -364,7 +359,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        ${PLUGINS_LIST}
+        $(echo "${PLUGINS_LIST_B64}" | base64 --decode 2>/dev/null || echo "${PLUGINS_LIST}")
         ```
         
         #### 编译信息
@@ -548,7 +543,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        ${PLUGINS_LIST}
+        $(echo "${PLUGINS_LIST_B64}" | base64 --decode 2>/dev/null || echo "${PLUGINS_LIST}")
         ```
         
         #### 编译信息
