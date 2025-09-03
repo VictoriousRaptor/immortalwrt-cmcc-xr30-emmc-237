@@ -320,24 +320,15 @@ jobs:
       id: extract_plugins
       run: |
         source "${{ env.BUILD_SCRIPT }}"
-        log_info "当前目录：$(pwd)" 0
-        ls -f
         cd "$SOURCE_DIR"
-        if [ ! -f ".config" ]; then
-          log_error "配置文件 .config 不存在" 1
-          echo "PLUGINS_LIST=  无额外插件（仅基础系统）" >> "$GITHUB_ENV" 
-          exit 1
-        fi
-        log_info "当前目录：$(pwd)" 0
-        ls -f
-        log_info $(echo -e $(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-[a-zA-Z0-9_-]+=y$' ".config" | \
-          awk -F'=' '{name = substr($1, 16); print "  " name}')) 0
-        plugins="$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-[a-zA-Z0-9_-]+=y$' ".config" | \
-          awk -F'=' '{name = substr($1, 16); print "  " name}')"
-        if [ -z "$plugins" ]; then
-          plugins="  无额外插件（仅基础系统）"
-        fi
-        echo "PLUGINS_LIST=${plugins}" >> "$GITHUB_ENV"
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
+          awk -F'[=]' '{name = substr($1, 16); print NR "、" name}')
+        [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
+        {
+          echo "PLUGINS_LIST<<EOF"
+          echo "$plugins"
+          echo "EOF"
+        } >> "$GITHUB_ENV"
         log_info "--已选插件列表--" 0
         echo -e "$plugins" | while IFS= read -r line; do
           log_highlight "$line" 0

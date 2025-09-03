@@ -47,11 +47,15 @@ clone_package() {
     fi
     
     # 执行克隆（无论之前是否存在目录）
-    echo "克隆包：$repo 到 $dir"
-    git clone --depth 1 "$repo" "$dir" || {
-        echo "❌ 克隆 $repo 失败！"
-        exit 1
-    }
+GIT_CLONE_OUTPUT=$(git clone --depth 1 "$repo" "$dir" 2>&1)
+CLONE_EXIT_CODE=$?
+if [ $CLONE_EXIT_CODE -eq 0 ]; then
+    echo -e "✅ 克隆包：$repo 到 $dir"
+else
+    echo -e "❌ 克隆包：$repo 到 $dir 失败！"
+    echo -e "❌ 错误信息：$GIT_CLONE_OUTPUT"
+    exit 1
+fi
 }
 
 # 克隆所需第三方包
