@@ -329,6 +329,9 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     EXPECTED_CONTENT=$(printf '\x2B%.0s' {1..20})
     CURRENT_CONTENT_RAW=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
     READ_EXIT_CODE=$?
+    printf '%s' "$CURRENT_CONTENT_RAW" | grep -E 'records (in|out)|bytes copied' | while IFS= read -r line; do
+        [ -n "$line" ] && log_info "$line"
+    done
     if [ $READ_EXIT_CODE -ne 0 ]; then
         log_error "读取EEPROM文件失败: $EEPROM_FILE"
     fi
@@ -347,6 +350,7 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     else
         log_info "EEPROM 文件无需修改: $EEPROM_FILE"
     fi
+    
     log_info "5G高功率25db设置完成"
 fi
 log_info "自定义配置加载完成！"
