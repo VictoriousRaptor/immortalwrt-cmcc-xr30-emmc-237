@@ -164,8 +164,16 @@ RUN set -e && \
 # 从构建阶段复制已经准备好的源码到最终镜像
 COPY --from=builder $SRC_OPENWRT_DIR $SRC_OPENWRT_DIR
 
-RUN chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR
+# 创建builder用户并设置权限
+RUN set -e && \
+    # 创建builder组
+    groupadd -g $GROUP_ID builder && \
+    # 创建builder用户并分配到builder组
+    useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash builder && \
+    # 设置目录权限
+    chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR
 
+# 切换到builder用户
 USER builder
 
 # 工作目录
