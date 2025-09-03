@@ -106,9 +106,9 @@ jobs:
 
     - name: 检查服务器性能
       run: |
-        echo "当前目录：$PWD"
         chmod +x ${{ env.BUILD_SCRIPT }}
         source ${{ env.BUILD_SCRIPT }}
+        log_info "当前目录：$PWD" 0
         log_warn "警告" 0
         log_warn "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！" 0
         log_highlight "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n" 0
