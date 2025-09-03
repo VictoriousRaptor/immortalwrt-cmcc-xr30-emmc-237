@@ -318,13 +318,11 @@ jobs:
       run: |
         source "${{ env.BUILD_SCRIPT }}"
         cd "$SOURCE_DIR"
-        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
         echo "PLUGINS_LIST_B64=$(echo -n "$plugins" | base64 -w 0)" >> "$GITHUB_ENV"
-        echo "PLUGINS_LIST<<EOF" >> "$GITHUB_ENV"
-        echo -n "$plugins" >> "$GITHUB_ENV"
-        echo "EOF" >> "$GITHUB_ENV"
+        echo "PLUGINS_LIST=$plugins" >> "$GITHUB_ENV"
         log_info "--已选插件列表--" 0
         echo -e "$plugins" | while IFS= read -r line; do
           log_highlight "$line" 0
