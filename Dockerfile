@@ -74,6 +74,19 @@ RUN set -e && \
     if [ ! -d "$SRC_OPENWRT_DIR/.git" ]; then \
         echo "❌ 源码克隆失败，未找到.git目录" && exit 1; \
     fi && \
+    echo "=== 校验源码完整性 ===" && \
+    LOCAL_COMMIT=$(cd $SRC_OPENWRT_DIR && git rev-parse HEAD 2>&1) && \
+    echo "本地Commit: $LOCAL_COMMIT" && \
+    if [ -z "$LOCAL_COMMIT" ] || [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then \
+        echo "❌ 源码哈希不一致 (本地: $LOCAL_COMMIT, 远程: $REMOTE_COMMIT)" && exit 1; \
+    fi && \
+    # 检查源码体积
+    echo "=== 检查源码体积 ===" && \
+    SRC_SIZE_MB=$(du -sm $SRC_OPENWRT_DIR 2>&1 | awk '{print $1}') && \
+    echo "源码体积: $SRC_SIZE_MB MB" && \
+    if [ -z "$SRC_SIZE_MB" ] || [ $SRC_SIZE_MB -lt $MIN_SRC_SIZE_MB ]; then \
+        echo "❌ 源码体积过小 ($SRC_SIZE_MB MB < $MIN_SRC_SIZE_MB MB)，可能不完整" && exit 1; \
+    fi && \
     # 深度清理源码，移除不必要文件
     cd $SRC_OPENWRT_DIR && \
     # 清理Git文件
@@ -87,7 +100,7 @@ RUN set -e && \
 # ======================================================
 # 第二阶段：精简运行环境（只包含必要的编译环境和源码）
 # ======================================================
-FROM ubuntu:22.04 AS final
+FROM ubuntu:22.04-slim AS final
 
 # 使用更小的基础镜像(可选)：如果兼容性允许，可考虑使用ubuntu:22.04-slim
 
@@ -122,9 +135,9 @@ RUN set -e && \
         libc6-dev-i386 libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
         libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev zlib1g-dev zstd \
         # 必需的系统工具
-        git wget ca-certificates \
+        git wget ca-certificates ccache cmake curl device-tree-compiler pkgconf \
         # 必需的文件处理工具
-        rsync unzip \
+        rsync unzip file \
         # 必需的编程语言
         python2.7 python3 python3-pyelftools \
     # 清理以减小体积
@@ -135,19 +148,20 @@ RUN set -e && \
     # 设置时区
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     # 创建工作目录
-    mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR && \
+    mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR
+    # 设置目录权限并切换到builder用户
+    # 优化点1: 将chown操作与用户创建合并到一个层
+RUN set -e && \
     # 创建builder用户并设置权限
     groupadd -g $GROUP_ID builder && \
-    useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash builder
-
-# 从构建阶段复制已经准备好的源码到最终镜像
-COPY --from=builder $SRC_OPENWRT_DIR $SRC_OPENWRT_DIR
-
-# 设置目录权限
-RUN set -e && \
+    useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash builder && \
+    # 设置目录权限（只对必要目录执行chown）
     chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR && \
     # 进一步清理可能的临时文件
-    rm -rf /tmp/* /var/tmp/*
+    rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/* /var/cache/*
+    
+# 从构建阶段复制已经准备好的源码到最终镜像
+COPY --from=builder $SRC_OPENWRT_DIR $SRC_OPENWRT_DIR
 
 # 切换到builder用户
 USER builder
