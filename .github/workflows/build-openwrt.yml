@@ -196,15 +196,15 @@ jobs:
         echo "CURRENT_USER_ID=$CURRENT_UID" >> $GITHUB_ENV
         echo "CURRENT_GROUP_ID=$CURRENT_GID" >> $GITHUB_ENV
         log_info "-----------------" 0
-        log_info "开始打包环境变量到容器" 0
+        log_info "开始打包环境变量到容器" 1
         > .env
         printenv | grep -E '^[a-zA-Z0-9_]+=([^\(\)]|$)' | while IFS='=' read -r var value; do
           # log_info "环境变量：var：$var|value：$value" 0
           echo "$var=$value" >> .env
         done
-        log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
+        log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 1
         docker pull "${{ env.DOCKER_IMAGE }}"
-        log_info "当前用户ID: $CURRENT_UID, 组ID: $CURRENT_GID" 0
+        log_info "当前用户ID: $CURRENT_UID, 组ID: $CURRENT_GID" 1
         docker run -d --name builder \
           --user $CURRENT_UID:$CURRENT_GID \
           --env-file .env \
@@ -212,39 +212,39 @@ jobs:
           -e TZ="${{ env.TZ }}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
           "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
-        log_separator "验证容器运行状态" 0
+        log_separator "验证容器运行状态" 1
         docker ps -a | grep builder
         if [ $? -ne 0 ]; then
-          log_error "❌ 容器启动失败，请查看日志：" 0
-          log_error "$(docker logs builder)" 0
+          log_error "❌ 容器启动失败，请查看日志：" 1
+          log_error "$(docker logs builder)" 1
           exit 1
         fi
         log_success "容器运行正常" 0
         
-        log_separator "迁移预置源码到共享目录" 0
+        log_separator "迁移预置源码到共享目录" 1
         docker exec builder bash -c '
           source ${{ env.BUILD_SCRIPT }}
           if [ -d "$SOURCE_DIR" ]; then
-            log_warn "清理共享目录旧内容：$SOURCE_DIR" 0
+            log_warn "清理共享目录旧内容：$SOURCE_DIR" 1
             rm -rf "$SOURCE_DIR"/* "$SOURCE_DIR"/.* 2>/dev/null
           else
             mkdir -p "$SOURCE_DIR" && chmod 777 "$SOURCE_DIR"
           fi
-          log_info "开始复制源码（含隐藏文件）..." 0
+          log_info "开始复制源码（含隐藏文件）..." 1
           cp -a "${SRC_OPENWRT_DIR}/." "${SOURCE_DIR}"
           critical_files=("scripts/feeds" "target/linux" "package")
           for file in "${critical_files[@]}"; do
             check_path="$SOURCE_DIR/$file"
             if [ ! -e "$check_path" ]; then
-              log_error "迁移失败：共享目录缺失关键文件 $check_path" 0
+              log_error "迁移失败：共享目录缺失关键文件 $check_path" 1
               exit 1
             fi
           done
-          log_success "预置源码迁移完成" 0
-          log_highlight "  - 从：$SRC_OPENWRT_DIR" 0
-          log_highlight "  - 到：""$SOURCE_DIR" 0
-          log_highlight "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")" 0
-          cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_success "已加载.config文件" 0
+          log_success "预置源码迁移完成" 1
+          log_highlight "  - 从：$SRC_OPENWRT_DIR" 1
+          log_highlight "  - 到：""$SOURCE_DIR" 1
+          log_highlight "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")" 1
+          cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_success "已加载.config文件" 1
           cd "$SOURCE_DIR"
           make defconfig # > /dev/null 2>&1
         '

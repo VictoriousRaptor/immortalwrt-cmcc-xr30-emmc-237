@@ -139,14 +139,14 @@ RUN set -e && \
         # 必需的文件处理工具
         rsync unzip file \
         # 必需的编程语言
-        python2.7 python3 python3-pyelftools \
+        python2.7 python3 python3-distutils python3-pyelftools && \
     # 清理以减小体积
-    && apt-get -qq autoremove --purge \
-    && apt-get -qq clean \
-    && rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
-           /tmp/* /var/tmp/* /usr/share/man/* /usr/share/info/* \
+    apt-get -qq autoremove --purge && \
+    apt-get -qq clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
+           /tmp/* /var/tmp/* /usr/share/man/* /usr/share/info/* && \
     # 设置时区
-    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     # 创建工作目录
     mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR
     # 设置目录权限并切换到builder用户
