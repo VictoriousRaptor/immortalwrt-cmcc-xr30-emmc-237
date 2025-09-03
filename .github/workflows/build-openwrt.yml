@@ -329,7 +329,7 @@ jobs:
           echo "$plugins"
           echo "EOF"
         } >> "$GITHUB_ENV"
-        cat -A "${PLUGINS_LIST}"
+        ${PLUGINS_LIST}
         log_info "--已选插件列表--" 0
         echo -e "$plugins" | while IFS= read -r line; do
           log_highlight "$line" 0
