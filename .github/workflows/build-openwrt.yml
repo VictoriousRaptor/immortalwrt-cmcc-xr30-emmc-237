@@ -223,7 +223,7 @@ jobs:
           -e TZ="${TZ}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
           "${DOCKER_IMAGE}" tail -f /dev/null
-        log_separator "验证容器运行状态" 1
+        log_separator "验证容器运行状态" 0
         docker ps -a | grep builder
         if [ $? -ne 0 ]; then
           log_error "❌ 容器启动失败，请查看日志：" 1
@@ -232,7 +232,7 @@ jobs:
         fi
         log_success "容器运行正常" 0
         
-        log_separator "迁移预置源码到共享目录" 1
+        log_separator "迁移预置源码到共享目录" 0
         docker exec builder bash -c '
           source ${{ env.BUILD_SCRIPT }}
           if [ -d "$SOURCE_DIR" ]; then
@@ -326,6 +326,8 @@ jobs:
           echo "PLUGINS_LIST=  无额外插件（仅基础系统）" >> "$GITHUB_ENV" 
           exit 1
         fi
+        log_info "当前目录：$(pwd)" 0
+        ls -s
         plugins="$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-[a-zA-Z0-9_-]+=y$' ".config" | \
           awk -F'=' '{name = substr($1, 16); print "  " name}')"
         if [ -z "$plugins" ]; then
