@@ -130,7 +130,7 @@ jobs:
               "repo_branch": "${{ env.REPO_BRANCH }}",
               "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
               "commit_logs": "${{ steps.getCommitInfo.outputs.commitLogs }}",
-              "trigger_source": "固件源码更新>触发构建镜像"
+              "trigger_source": "检测固件源码更新>更新固件源码触发构建镜像"
             }
           }
           EOF

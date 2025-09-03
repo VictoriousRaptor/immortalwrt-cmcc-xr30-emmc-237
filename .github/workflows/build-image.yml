@@ -214,7 +214,7 @@ jobs:
                 "repo_branch": "${REPO_BRANCH}",  
                 "commit_hash": "${COMMIT_HASH}",
                 "commit_logs": "${COMMIT_LOGS}",
-                "trigger_source": "${TRIGGER_SOURCE}>构建镜像触发自动编译"
+                "trigger_source": "${TRIGGER_SOURCE}>构建镜像触发编译固件"
               }
             }
           }
@@ -241,7 +241,7 @@ jobs:
             echo "  - 缓存编译: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.cachewrtbuild_switch')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
             echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
-            echo "  - 触发源: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.trigger_source')"
+            echo "  - 触发来源: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.trigger_source')"
           else
             echo "❌ 编译固件工作流触发失败！"
             echo "错误信息: $RESPONSE"

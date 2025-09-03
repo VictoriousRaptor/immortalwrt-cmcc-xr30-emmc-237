@@ -93,7 +93,7 @@ env:
   KERNEL_VERSION: 6.6
   LUCI_VERSION: 24.10
   BUILD_SCRIPT: ./build-openwrt.sh
-  TRIGGER_SOURCE: 手动触发
+  TRIGGER_SOURCE: ${{ github.event.inputs.trigger_source || github.event.client_payload.inputs.trigger_source || '手动触发' }}
 
 jobs:
   build:

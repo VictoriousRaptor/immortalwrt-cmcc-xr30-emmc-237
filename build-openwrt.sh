@@ -291,37 +291,37 @@ log_info "配置文件总行数: $(wc -l ".config" | awk '{print $1}')"
 # 设置用户输入的参数
 if [ -n "$LAN_IP" ]; then
     log_info "设置LAN IP地址为: $LAN_IP"
-    sed -i "s/192\.168\.[0-9]*\.[0-9]*/${LAN_IP}/g" $(find "/feeds/luci/modules/luci-mod-system" -type f -name 'flash.js')
-    sed -i "s/192\.168\.[0-9]*\.[0-9]*/${LAN_IP}/g" "/package/base-files/files/bin/config_generate"
+    sed -i "s/192\.168\.[0-9]*\.[0-9]*/${LAN_IP}/g" $(find "./feeds/luci/modules/luci-mod-system" -type f -name 'flash.js')
+    sed -i "s/192\.168\.[0-9]*\.[0-9]*/${LAN_IP}/g" "./package/base-files/files/bin/config_generate"
 fi
 if [ -n "$DEFAULT_THEME" ]; then
     log_info "设置默认主题为: $DEFAULT_THEME"
-    sed -i "s/luci-theme-bootstrap/luci-theme-${DEFAULT_THEME}/g" "/feeds/luci/collections/luci/Makefile"
+    sed -i "s/luci-theme-bootstrap/luci-theme-${DEFAULT_THEME}/g" "./feeds/luci/collections/luci/Makefile"
 fi
 if [ -n "$HOSTNAME" ]; then
     log_info "设置默认主机名为: $HOSTNAME"
-    sed -i "s/set system.@system\[-1\].hostname='ImmortalWrt'/set system.@system[-1].hostname='${HOSTNAME}'/g" "/package/base-files/files/bin/config_generate"
-    sed -i "s/'hostname:string:OpenWrt'/'hostname:string:${HOSTNAME}'/g" "/package/base-files/files/etc/init.d/system"
-    sed -i "s/echo OpenWrt-failsafe/echo ${HOSTNAME}-failsafe/g" "/package/base-files/files/lib/preinit/10_indicate_failsafe"
+    sed -i "s/set system.@system\[-1\].hostname='ImmortalWrt'/set system.@system[-1].hostname='${HOSTNAME}'/g" "./package/base-files/files/bin/config_generate"
+    sed -i "s/'hostname:string:OpenWrt'/'hostname:string:${HOSTNAME}'/g" "./package/base-files/files/etc/init.d/system"
+    sed -i "s/echo OpenWrt-failsafe/echo ${HOSTNAME}-failsafe/g" "./package/base-files/files/lib/preinit/10_indicate_failsafe"
 fi
 if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWER_5G" = "1" ]; then
-    log_info "设置5G高功率25db"
-    rm -f /package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p
+    log_info "5G高功率25db设置中..."
+    rm -f "./package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p"
     if [ $? -eq 0 ]; then
        log_info "删除 e2p 成功"
     else
        log_error "删除 e2p 失败"
     fi
-    EEPROM_FILE="/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin"
+    EEPROM_FILE="./package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin"
     if [ -f "$EEPROM_FILE" ]; then
-       mkdir -p files/lib/firmware
-    ln -sf /lib/firmware/MT7981_iPAiLNA_EEPROM.bin files/lib/firmware/e2p
-      if test -L "files/lib/firmware/e2p"; then log_info "符号链接已创建"; else log_error "符号链接创建失败"; fi
+       mkdir -p "./files/lib/firmware"
+    ln -sf "./lib/firmware/MT7981_iPAiLNA_EEPROM.bin" "./files/lib/firmware/e2p"
+      if test -L "./files/lib/firmware/e2p"; then log_info "符号链接已创建"; else log_error "符号链接创建失败"; fi
     else
        log_error "$EEPROM_FILE 不存在，无法创建符号链接"
       exit 1
     fi
-    EEPROM_FILE=$(find /package -name MT7981_iPAiLNA_EEPROM.bin 2>/dev/null | head -n 1)
+    EEPROM_FILE=$(find "./package" -name MT7981_iPAiLNA_EEPROM.bin 2>/dev/null | head -n 1)
     if [ -z "$EEPROM_FILE" ]; then
         log_error "未找到 EEPROM 文件"
         exit 1
