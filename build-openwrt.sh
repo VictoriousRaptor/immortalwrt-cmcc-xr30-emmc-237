@@ -336,11 +336,16 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ]; then
     fi
     ACTUAL_EEPROM_DATA=$(printf '%s' "$CURRENT_CONTENT_RAW" | tail -c 20)
     if [ "$ACTUAL_EEPROM_DATA" != "$EXPECTED_CONTENT" ]; then
-        DD if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
+        DD_WRITE_OUTPUT=$(echo -n "$EXPECTED_CONTENT" | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) count=20 conv=notrunc 2>&1)
+        WRITE_EXIT_CODE=$?
         printf '%s' "$DD_WRITE_OUTPUT" | while IFS= read -r line; do
             [ -n "$line" ] && log_info "$line"
         done
-        log_info "EEPROM 文件已更新: $EEPROM_FILE"
+        if [ $WRITE_EXIT_CODE -eq 0 ]; then
+            log_info "EEPROM 文件已更新: $EEPROM_FILE"
+        else
+            log_error "EEPROM 文件更新失败: $EEPROM_FILE"
+        fi
     else
         log_info "EEPROM 文件无需修改: $EEPROM_FILE"
     fi
