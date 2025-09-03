@@ -11,15 +11,14 @@
 #
 
 # 更新golang包
-rm -rf feeds/packages/lang/golang
-mkdir -p feeds/packages/lang/golang
-if git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang; then
-    echo "✅ 成功更新golang包"
-else
-    echo "❌ 更新golang包失败"
+golangdir="feeds/packages/lang/golang"
+rm -rf "$golangdir"
+mkdir -p "$golangdir"
+git clone clone https://github.com/sbwml/packages_lang_golang -b 24.x "$golangdir" || {
+    echo "❌ 更新golang包失败！"
     exit 1
-fi
-
+ }
+ echo -e "✅ 成功更新golang包"
 # 修改插件名字
 grep -rl '"终端"' . | xargs -r sed -i 's?"终端"?"TTYD"?g'
 if grep -r '"TTYD 终端"' . > /dev/null; then

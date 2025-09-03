@@ -320,6 +320,8 @@ jobs:
       id: extract_plugins
       run: |
         source "${{ env.BUILD_SCRIPT }}"
+        log_info "当前目录：$(pwd)" 0
+        ls -f
         cd "$SOURCE_DIR"
         if [ ! -f ".config" ]; then
           log_error "配置文件 .config 不存在" 1
@@ -327,7 +329,9 @@ jobs:
           exit 1
         fi
         log_info "当前目录：$(pwd)" 0
-        ls -s
+        ls -f
+        log_info $(echo -e $(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-[a-zA-Z0-9_-]+=y$' ".config" | \
+          awk -F'=' '{name = substr($1, 16); print "  " name}')) 0
         plugins="$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-[a-zA-Z0-9_-]+=y$' ".config" | \
           awk -F'=' '{name = substr($1, 16); print "  " name}')"
         if [ -z "$plugins" ]; then
