@@ -261,9 +261,9 @@ jobs:
           SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
           DST_MD5=$(md5sum "${SOURCE_DIR}/.config" | awk "{print \$1}")
           if [ "$SRC_MD5" = "$DST_MD5" ]; then
-              log_success "加载.config配置文件成功！" 0
+              log_success "加载.config配置文件成功！" 1
           else
-              log_error "加载.config失败：配置文件不一致！" 0
+              log_error "加载.config失败：配置文件不一致！" 1
               exit 1
           fi
         '
@@ -327,14 +327,17 @@ jobs:
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
-        PLUGINS_TEMP_FILE="$WORK_DIR/plugins_list.txt"
-        echo -n "$plugins" > "$PLUGINS_TEMP_FILE"
-        echo "PLUGINS_TEMP_FILE=$PLUGINS_TEMP_FILE" >> "$GITHUB_ENV"
+        echo -n "$plugins" > "${{ env.WORK_DIR }}/plugins_list.txt"
         
         log_info "--已选插件列表--" 0
-        echo -e "$plugins" | while IFS= read -r line; do
-          log_highlight "$line" 0
-        done
+        count=0
+        while IFS= read -r line; do
+          if [ -n "$line" ]; then
+            count=$((count+1))
+            log_highlight "$line" 0
+          fi
+        done < <(printf "%s\n" "$plugins")
+        log_info "✅ 共检测到 $count 个已选插件" 0
 
     - name: 提取缓存相关变量
       run: |
@@ -365,7 +368,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "$PLUGINS_TEMP_FILE")
+        $(cat "${{ env.WORK_DIR }}/plugins_list.txt")
         ```
         
         #### 编译信息
@@ -549,7 +552,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "$PLUGINS_TEMP_FILE")
+        $(cat "${{ env.WORK_DIR }}/plugins_list.txt")
         ```
         
         #### 编译信息
