@@ -66,10 +66,10 @@ env:
   LAN_IP: ${{ github.event.inputs.lan_ip || github.event.client_payload.inputs.lan_ip || '192.168.3.1' }}
   DEFAULT_THEME: ${{ github.event.inputs.default_theme || github.event.client_payload.inputs.default_theme || 'argon' }}
   HOSTNAME: ${{ github.event.inputs.hostname || github.event.client_payload.inputs.hostname || 'Rowrt' }}
-  HIGH_POWER_5G: ${{ github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || false }}
+  HIGH_POWER_5G: ${{ format('{0}', github.event.inputs.high_power_5g || github.event.client_payload.inputs.high_power_5g || 'true') }}
   BUILD_TYPE: ${{ github.event.inputs.build_type || github.event.client_payload.inputs.build_type || 'Host' }}
-  SSH: ${{ github.event.inputs.ssh || github.event.client_payload.inputs.ssh || false }}
-  CACHEWRTBUILD_SWITCH: ${{ github.event.inputs.cachewrtbuild_switch || github.event.client_payload.inputs.cachewrtbuild_switch || true }}
+  SSH: ${{ format('{0}', github.event.inputs.ssh || github.event.client_payload.inputs.ssh || 'false') }}
+  CACHEWRTBUILD_SWITCH: ${{ format('{0}', github.event.inputs.cachewrtbuild_switch || github.event.client_payload.inputs.cachewrtbuild_switch || 'true') }}
   # 上传配置
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true

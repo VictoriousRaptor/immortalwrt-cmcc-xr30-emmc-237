@@ -306,7 +306,7 @@ if [ -n "$HOSTNAME" ]; then
     sed -i "s/'hostname:string:OpenWrt'/'hostname:string:${HOSTNAME}'/g" "$SOURCE_DIR/package/base-files/files/etc/init.d/system"
     sed -i "s/echo OpenWrt-failsafe/echo ${HOSTNAME}-failsafe/g" "$SOURCE_DIR/package/base-files/files/lib/preinit/10_indicate_failsafe"
 fi
-if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ]; then
+if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWER_5G" = "1" ]; then
     log_info "设置5G高功率25db"
     rm -f $SOURCE_DIR/package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p
     if [ $? -eq 0 ]; then
