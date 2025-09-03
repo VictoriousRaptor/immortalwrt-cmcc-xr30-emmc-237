@@ -21,7 +21,7 @@ RUN set -e && \
     echo "Build trigger: $BUILD_TRIGGER" && \
     # 清理预装的不需要的包
     rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc && \
-    # 更新源并安装核心编译依赖（移除了一些非必需工具）
+    # 更新源并安装核心编译依赖
     apt-get -qq update && \
     apt-get -qq install -f -y && \
     apt-get -qq install -y --no-install-recommends \
@@ -42,14 +42,8 @@ RUN set -e && \
         ca-certificates \
         # 编程语言支持
         python2.7 python3 python3-pyelftools python3-setuptools libpython3-dev \
-        # 网络工具（最小化）
-        wget \
-        # 以下工具在某些场景可能有用，但非核心编译必需
-        # ack antlr3 aria2 asciidoc fastjar gperf haveged \
-        # help2man intltool lrzsz mkisofs msmtp nano ninja-build \
-        # qemu-utils scons subversion swig texinfo uglifyjs upx-ucl \
-        # vim xmlto xxd \
-    && \
+        # 网络工具
+        wget && \
     # 安装完成后立即清理以减小层体积
     apt-get -qq autoremove --purge && \
     apt-get -qq clean && \
@@ -59,13 +53,13 @@ RUN set -e && \
            /var/spool /usr/lib/systemd /usr/lib/python*/test \
            /usr/lib/jvm/*/src.zip /usr/lib/jvm/*/demo && \
     # 设置时区
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
-    # 创建工作目录
-    mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 单独的层用于源码克隆和校验，便于缓存
 RUN set -e && \
-    # 配置Git忽略SSL证书验证问题（作为备选方案）
+    # 创建工作目录
+    mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR && \
+    # 配置Git忽略SSL证书验证问题
     git config --global http.sslVerify false && \
     echo "=== 获取远程源码哈希: $REPO_URL ($REPO_BRANCH) ===" && \
     REMOTE_COMMIT=$(git ls-remote $REPO_URL $REPO_BRANCH | awk '{print $1}') && \
@@ -101,6 +95,8 @@ RUN set -e && \
     # 优化git仓库以减小体积
     cd $SRC_OPENWRT_DIR && \
     git gc --aggressive --prune=now && \
+    # 清理不必要的git文件
+    rm -rf .git/refs/remotes .git/logs && \
     echo "=== 源码克隆及校验完成，体积: $(du -sh $SRC_OPENWRT_DIR | cut -f1) ==="
 
 # ======================================================
@@ -133,44 +129,39 @@ RUN set -e && \
     apt-get -qq install -y --no-install-recommends \
         # 最小编译工具集
         build-essential gcc-multilib g++-multilib binutils \
-        # 编译必备工具链 - 添加关键工具
+        # 编译必备工具链
         autoconf automake autopoint bison flex gettext gawk \
         # 必需的库文件
-        libc6-dev-i386 libncurses5-dev libncursesw5-dev \
-        libreadline-dev libssl-dev zlib1g-dev zstd \
-        # 添加缺少的关键库
-        libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+        libc6-dev-i386 libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+        libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev zlib1g-dev zstd \
         # 必需的系统工具
         ccache cmake curl device-tree-compiler git pkgconf \
-        # 添加缺失的文件处理工具
-        rsync unzip file \
+        # 必需的文件处理工具
+        rsync unzip \
         # 必需的编程语言
         python2.7 python3 python3-pyelftools python3-distutils \
         # 网络工具
         wget \
         # 添加证书包解决SSL验证问题
-        ca-certificates \
-    && \
+        ca-certificates && \
     # 清理以减小体积
     apt-get -qq autoremove --purge && \
     apt-get -qq clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/* /var/log/* \
-           /tmp/* /var/tmp/* && \
+           /tmp/* /var/tmp/* /usr/share/man/* /usr/share/info/* && \
     # 设置时区
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
     # 创建工作目录
-    mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR
+    mkdir -p -m 777 $SRC_OPENWRT_DIR $DEFAULT_DIR && \
+    # 创建builder用户并设置权限
+    groupadd -g $GROUP_ID builder && \
+    useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash builder
 
 # 从构建阶段复制已经准备好的源码到最终镜像
 COPY --from=builder $SRC_OPENWRT_DIR $SRC_OPENWRT_DIR
 
-# 创建builder用户并设置权限
+# 设置目录权限
 RUN set -e && \
-    # 创建builder组
-    groupadd -g $GROUP_ID builder && \
-    # 创建builder用户并分配到builder组
-    useradd -u $USER_ID -g $GROUP_ID -m -s /bin/bash builder && \
-    # 设置目录权限
     chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR
 
 # 切换到builder用户
