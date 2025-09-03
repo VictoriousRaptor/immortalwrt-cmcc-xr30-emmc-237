@@ -145,7 +145,7 @@ jobs:
           echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
           echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
           log_highlight "从源码更新检测工作流触发，使用传递的参数"
-          cat github.event.client_payload
+          echo "${{ toJSON(github.event.client_payload) }}"
         else
           log_highlight "手动触发，使用默认参数或指定参数" 1
         fi
