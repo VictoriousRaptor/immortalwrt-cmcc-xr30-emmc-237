@@ -201,7 +201,7 @@ jobs:
           echo "✅ jq工具安装完成"
           echo "当前jq版本：$(jq --version)"
           echo "=== 开始触发编译固件工作流 ==="
-          BUILD_TRIGGER_PAYLOAD=$(cat << 'EOF'
+          BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
             "event_type": "镜像更新触发自动编译固件",
             "client_payload": {
