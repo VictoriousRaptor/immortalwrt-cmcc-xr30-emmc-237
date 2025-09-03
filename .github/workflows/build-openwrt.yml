@@ -473,19 +473,28 @@ jobs:
     - name: 整理固件文件
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
+      shell: bash  # 关键：用Bash执行，支持嵌套通配符（*/*）展开
       run: |
         source ${{ env.BUILD_SCRIPT }}
         log_highlight "DEVICE_TARGET: $DEVICE_TARGET" 0
         log_highlight "DEVICE_SUBTARGET: $DEVICE_SUBTARGET" 0
         log_highlight "SOURCE_DIR: ${{ env.SOURCE_DIR }}" 0
         log_highlight "当前工作目录: $PWD" 0
-        cd "${{ env.SOURCE_DIR }}/bin/targets/*/*"
+        shopt -s nullglob
+        FIRMWARE_DIR_CANDIDATES="${{ env.SOURCE_DIR }}/bin/targets/*/*"
+        FIRMWARE_DIRS=($FIRMWARE_DIR_CANDIDATES)
+        if [ ${#FIRMWARE_DIRS[@]} -eq 0 ]; then
+          log_error "通配符未匹配到任何固件目录！检查路径：${{ env.SOURCE_DIR }}/bin/targets/" 0
+          exit 1
+        fi
+        FIRMWARE_DIR="${FIRMWARE_DIRS[0]}"
+        log_highlight "通配符匹配到的固件目录: $FIRMWARE_DIR" 0
+        cd "$FIRMWARE_DIR"
         rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null || log_warn "注意：某些文件可能不存在，继续处理" 0
+        log_highlight "整理后的固件文件列表:" 0
+        ls -lh || log_warn "警告：当前目录无文件可列出" 0
         
-        log_highlight "整理后的固件文件:" 0
-        ls -lh || log_warn "警告：无法列出文件" 0
-        
-        # 设置成功状态和环境变量
+        # 6. 输出环境变量和状态
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
         log_success "固件文件整理完成" 0
