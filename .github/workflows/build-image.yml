@@ -14,9 +14,9 @@ env:
   LAN_IP: '192.168.3.1'
   HOSTNAME: 'Rowrt'
   DEFAULT_THEME: 'argon'
-  HIGH_POWER_5G: 'true'
-  SSH: 'false'
-  CACHEWRTBUILD_SWITCH: 'true'
+  HIGH_POWER_5G: true
+  SSH: false
+  CACHEWRTBUILD_SWITCH: true
 
 jobs:
   build-and-push:
@@ -205,7 +205,7 @@ jobs:
             "event_type": "镜像更新触发自动编译固件",
             "client_payload": {
               "inputs": {
-                "build_type": ${{ env.BUILD_TYPE }},
+                "build_type": "${{ env.BUILD_TYPE }}",
                 "lan_ip": "${{ env.LAN_IP }}",
                 "default_theme": "${{ env.DEFAULT_THEME }}",
                 "hostname": "${{ env.HOSTNAME }}",
