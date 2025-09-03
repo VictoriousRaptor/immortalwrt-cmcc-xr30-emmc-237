@@ -173,7 +173,7 @@ jobs:
           log_highlight "触发更新的提交日志: ${COMMIT_LOGS}" 1
         fi
 
-    - name: 初始化编译环境（主机模式）
+    - name: Host环境初始化
       if: env.BUILD_TYPE == 'Host'
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -182,7 +182,7 @@ jobs:
         source ${{ env.BUILD_SCRIPT }}
         init_env
 
-    - name: 启动Docker容器（Docker模式）
+    - name: Docker环境初始化
       if: env.BUILD_TYPE == 'Docker'
       run: |
         source ${{ env.BUILD_SCRIPT }}
@@ -260,14 +260,14 @@ jobs:
           # make olddefconfig > /dev/null 2>&1
         '
 
-    - name: 克隆源码（主机模式）
+    - name: Host克隆源码
       if: env.BUILD_TYPE == 'Host'
       run: |
         source ${{ env.BUILD_SCRIPT }} && prepare_source
 
     - name: 加载自定义feeds
       run: |
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
           source ${{ env.BUILD_SCRIPT }} && load_custom_feeds
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_feeds'
@@ -275,7 +275,7 @@ jobs:
     
     - name: 更新并安装feeds
       run: |
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
           source ${{ env.BUILD_SCRIPT }} &&update_install_feeds
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && update_install_feeds'
@@ -283,13 +283,13 @@ jobs:
     
     - name: 加载自定义配置
       run: |
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
           source ${{ env.BUILD_SCRIPT }} && load_custom_config
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_config' 
         fi
       
-    - name: SSH远程连接（make menuconfig）
+    - name: SSH远程连接
       uses: rogueme/debugger-action@main
       if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
       env:
@@ -298,7 +298,7 @@ jobs:
         REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
         TIMEOUT_MIN: 360
           
-    - name: 同步.config（仅SSH模式）
+    - name: 同步.config
       if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
       run: |
         source ${{ env.BUILD_SCRIPT }}
@@ -329,6 +329,7 @@ jobs:
           echo "$plugins"
           echo "EOF"
         } >> "$GITHUB_ENV"
+        cat -A "${PLUGINS_LIST}"
         log_info "--已选插件列表--" 0
         echo -e "$plugins" | while IFS= read -r line; do
           log_highlight "$line" 0
@@ -398,7 +399,7 @@ jobs:
     - name: 下载软件包
       id: package
       run: |
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
           source ${{ env.BUILD_SCRIPT }} && download_packages
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && download_packages'
@@ -415,9 +416,9 @@ jobs:
         remove_tool_cache: true
         remove_swap: true
         remove_docker_image: ${{ github.event.inputs.build_type == 'Host' && 'true' || 'false' }}
-        remove_packages: "microsoft-edge-stable google-chrome-stable firefox postgresql* *llvm* mysql* dotnet-sdk-*"
+        # remove_packages: ""
         remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/share/chromium /usr/local/share/powershell"
-        # 如果释放空间不够可在remove_packages添加google-cloud-cli、temurin-*、azure-cli
+        # 如果释放空间不够可在remove_packages添加google-cloud-cli temurin-* azure-cli microsoft-edge-stable google-chrome-stable firefox postgresql* *llvm* mysql* dotnet-sdk-*
         # 如果释放空间不够可在remove_folders添加/usr/local/lib/node_modules
         # 如果释放空间不够可将remove_android改为true
 
@@ -433,7 +434,7 @@ jobs:
       id: compile
       run: |
         source ${{ env.BUILD_SCRIPT }} 
-        if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
+        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
           compile_firmware
         else
           docker exec builder bash -c 'source ${BUILD_SCRIPT} && compile_firmware'
