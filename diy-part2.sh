@@ -15,6 +15,7 @@ golangdir="feeds/packages/lang/golang"
 rm -rf "$golangdir"
 mkdir -p "$golangdir"
 GIT_CLONE_OUTPUT=$(git clone https://github.com/sbwml/packages_lang_golang -b 24.x "$golangdir" 2>&1)
+CLONE_EXIT_CODE=$?
 if [ $CLONE_EXIT_CODE -eq 0 ]; then
     echo -e "✅ golang 包更新成功"
 else
