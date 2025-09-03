@@ -246,7 +246,7 @@ jobs:
           log_highlight "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")" 0
           cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_success "已加载.config文件" 0
           cd "$SOURCE_DIR"
-          make defconfig > /dev/null 2>&1
+          make defconfig # > /dev/null 2>&1
         '
 
     - name: 克隆源码（主机模式）
