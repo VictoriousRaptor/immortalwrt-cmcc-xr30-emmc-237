@@ -134,6 +134,7 @@ jobs:
         source ${{ env.BUILD_SCRIPT }}
         if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
           # 从repository-dispatch事件获取参数
+          echo "BUILD_TYPE=${{ github.event.client_payload.build_type }}" >> $GITHUB_ENV
           echo "REPO_URL=${{ github.event.client_payload.repo_url }}" >> $GITHUB_ENV
           echo "REPO_BRANCH=${{ github.event.client_payload.repo_branch }}" >> $GITHUB_ENV
           echo "COMMIT_HASH=${{ github.event.client_payload.commit_hash }}" >> $GITHUB_ENV
@@ -146,6 +147,18 @@ jobs:
           echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
           echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
           log_highlight "从源码更新检测工作流触发，使用传递的参数"
+          log_info "编译方式: ${BUILD_TYPE}" 0
+          log_info "源码仓库: ${REPO_URL}" 0
+          log_info "源码分支: ${REPO_BRANCH}" 0
+          log_info "触发来源: ${TRIGGER_SOURCE}" 0
+          log_info "触发更新的提交哈希: ${COMMIT_HASH}" 0
+          log_info "触发更新的提交日志: ${COMMIT_LOGS}" 0
+          log_info "LAN_IP: ${LAN_IP}" 0
+          log_info "默认主题: ${DEFAULT_THEME}" 0
+          log_info "主机名: ${HOSTNAME}" 0
+          log_info "高功率5G: ${HIGH_POWER_5G}" 0
+          log_info "SSH: ${SSH}" 0
+          log_info "缓存开关: ${CACHEWRTBUILD_SWITCH}" 0
         else
           log_highlight "手动触发，使用默认参数或指定参数" 1
         fi

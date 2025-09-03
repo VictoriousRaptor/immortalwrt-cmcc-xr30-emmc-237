@@ -43,16 +43,16 @@ jobs:
           fi
           
           # 输出当前使用的参数
-          echo "使用的源码仓库: ${{ env.REPO_URL }}"
-          echo "使用的源码分支: ${{ env.REPO_BRANCH }}"
-          if [ -n "${{ env.COMMIT_HASH }}" ]; then
-            echo "触发更新的提交哈希: ${{ env.COMMIT_HASH }}"
+          echo "使用的源码仓库: $REPO_URL"
+          echo "使用的源码分支: $REPO_BRANCH"
+          if [ -n "$COMMIT_HASH" ]; then
+            echo "触发更新的提交哈希: $COMMIT_HASH"
           fi
-          if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
-            echo "触发来源: ${{ env.TRIGGER_SOURCE }}"
+          if [ -n "$TRIGGER_SOURCE" ]; then
+            echo "触发来源: $TRIGGER_SOURCE"
           fi
-          if [ -n "${{ env.COMMIT_LOGS }}" ]; then
-            echo "触发更新的提交日志: ${{ env.COMMIT_LOGS }}"
+          if [ -n "$COMMIT_LOGS" ]; then
+            echo "触发更新的提交日志: $COMMIT_LOGS"
           fi
 
       - name: 检查磁盘空间并设置清理标记
@@ -206,18 +206,18 @@ jobs:
             "event_type": "镜像更新触发自动编译固件",
             "client_payload": {
               "inputs": {
-                "build_type": "${{ env.BUILD_TYPE }}",
-                "lan_ip": "${{ env.LAN_IP }}",
-                "default_theme": "${{ env.DEFAULT_THEME }}",
-                "hostname": "${{ env.HOSTNAME }}",
-                "high_power_5g": ${{ env.HIGH_POWER_5G }},
-                "ssh": ${{ env.SSH }},
-                "cachewrtbuild_switch": ${{ env.CACHEWRTBUILD_SWITCH }},
-                "repo_url": "${{ env.REPO_URL }}",
-                "repo_branch": "${{ env.REPO_BRANCH }}",  
-                "commit_hash": "${{ env.COMMIT_HASH }}",
-                "commit_logs": "${{ env.COMMIT_LOGS }}",
-                "trigger_source": "${{ env.TRIGGER_SOURCE }}"   
+                "build_type": "${BUILD_TYPE}",
+                "lan_ip": "${LAN_IP}",
+                "default_theme": "${DEFAULT_THEME}",
+                "hostname": "${HOSTNAME}",
+                "high_power_5g": "${HIGH_POWER_5G}",
+                "ssh": "${SSH}",
+                "cachewrtbuild_switch": "${CACHEWRTBUILD_SWITCH}",
+                "repo_url": "${REPO_URL}",
+                "repo_branch": "${REPO_BRANCH}",  
+                "commit_hash": "${COMMIT_HASH}",
+                "commit_logs": "${COMMIT_LOGS}",
+                "trigger_source": "${TRIGGER_SOURCE}"   
               }
             }
           }
