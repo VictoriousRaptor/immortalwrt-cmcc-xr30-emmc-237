@@ -118,6 +118,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     DEFAULT_DIR=/opt/build \
     SRC_OPENWRT_DIR=/opt/openwrt
 
+# 添加构建参数，允许动态设置用户ID和组ID
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 # 命令失败时立即终止构建
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN set -e && \
@@ -159,6 +163,10 @@ RUN set -e && \
 
 # 从构建阶段复制已经准备好的源码到最终镜像
 COPY --from=builder $SRC_OPENWRT_DIR $SRC_OPENWRT_DIR
+
+RUN chown -R $USER_ID:$GROUP_ID $SRC_OPENWRT_DIR
+
+USER builder
 
 # 工作目录
 WORKDIR $DEFAULT_DIR

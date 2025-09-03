@@ -200,8 +200,11 @@ jobs:
         done
         log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 0
         docker pull "${{ env.DOCKER_IMAGE }}"
-        
+        CURRENT_UID=$(id -u)
+        CURRENT_GID=$(id -g)
+        echo "当前用户ID: $CURRENT_UID, 组ID: $CURRENT_GID" >> $GITHUB_ENV
         docker run -d --name builder \
+          --user $CURRENT_UID:$CURRENT_GID \
           --env-file .env \
           -v "$PWD":"${{ env.DEFAULT_DIR }}":rw \
           -e TZ="${{ env.TZ }}" \
@@ -305,10 +308,10 @@ jobs:
       run: |
         source ${{ env.BUILD_SCRIPT }}
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
-          awk -F'[=]' '{name = substr($1, 16); print "  " NR ". " name}')
+          awk -F'[=]' '{name = substr($1, 16); print "  " name}')
         [ -z "$plugins" ] && plugins="  无额外插件（仅基础系统）"
         # 使用标准的EOF格式输出多行文本
-        { 
+        {
           echo "plugins_list<<EOF"
           echo "$plugins"
           echo "EOF"
@@ -317,6 +320,35 @@ jobs:
         echo -e "$plugins" | while IFS= read -r line; do
           log_highlight "$line" 0
         done
+
+        cat > release.txt <<EOF
+        ### ${DEVICE_NAME}-immortalwrt 固件
+        
+        - 后台地址：${{ env.LAN_IP }}
+        - 登录账号：root
+        - 登录密码：无
+        - 设备信息：${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
+        - 设备型号：${{ env.DEVICE_NAME }}
+        - Luci版本：${{ env.LUCI_VERSION }}
+        - 内核版本：${{ env.KERNEL_VERSION }}
+        - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '已' || '未' }}启用
+        - 默认主题：${{ env.DEFAULT_THEME }}
+        - 主机名：${{ env.HOSTNAME }}
+        
+        #### 已选插件列表
+        ```
+        ${{ steps.extract_plugins.outputs.plugins_list }}
+        ```
+        
+        #### 编译信息
+        - 编译方式：${{ env.BUILD_TYPE }}
+        - 源码URL：${REPO_URL}
+        - 源码分支：${REPO_BRANCH}
+        - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
+        - 工作流编号：#${{ github.run_number }}
+        EOF
+        cat release.txt
+        log_success "发布信息生成完成" 0
 
     - name: 提取缓存相关变量
       run: |
@@ -364,14 +396,18 @@ jobs:
       continue-on-error: true
       timeout-minutes: 15
       with:
-        remove_android: true
+        remove_android: false
         remove_dotnet: true
         remove_haskell: true
         remove_tool_cache: true
         remove_swap: true
         remove_docker_image: ${{ github.event.inputs.build_type == 'Host' && 'true' || 'false' }}
-        remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
-        remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/lib/node_modules /usr/local/share/chromium /usr/local/share/powershell"
+        remove_packages: "microsoft-edge-stable google-chrome-stable firefox postgresql* *llvm* mysql* dotnet-sdk-*"
+        remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/share/chromium /usr/local/share/powershell"
+        # 如果释放空间不够可在remove_packages添加google-cloud-cli、temurin-*、azure-cli
+        # 如果释放空间不够可在remove_folders添加/usr/local/lib/node_modules
+        # 如果释放空间不够可将remove_android改为true
+
     - name: 查看清理后磁盘空间
       if: (!cancelled())
       run: |
@@ -383,8 +419,9 @@ jobs:
     - name: 编译固件
       id: compile
       run: |
+        source ${{ env.BUILD_SCRIPT }} 
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
-          source ${{ env.BUILD_SCRIPT }} && compile_firmware
+          compile_firmware
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && compile_firmware'
         fi
@@ -394,7 +431,6 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         FILE_DATE="_$(date +"%Y%m%d%H%M")"
         echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
-        log_highlight "当前目录：$PWD" 0
         EXTRACTED_LUCI_VERSION=$(grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
         ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
         LUCI_VERSION=${EXTRACTED_LUCI_VERSION:-${{ env.LUCI_VERSION }}}
@@ -446,7 +482,7 @@ jobs:
             log_success "通过精准路径成功找到固件目录: $KNOWN_FIRMWARE_DIR" 0
             cd "$KNOWN_FIRMWARE_DIR"
           else
-            log_error "::error::未找到固件目录！可能的路径：" 0
+            log_error "未找到固件目录！可能的路径：" 0
             log_warn "- 精准路径: $KNOWN_FIRMWARE_DIR" 0
             log_warn "- 通配符路径: $WILDCARD_PATH" 0
             log_warn "- 找到的目录数量: $DIR_COUNT" 0

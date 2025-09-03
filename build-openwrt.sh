@@ -1,8 +1,7 @@
 # ======================================================
-# 日志函数 - 添加颜色支持
+# 函数列表 - 所有需要导出的函数
 # ======================================================
-# 参数1: 颜色代码(r:红色, g:绿色, y:黄色, b:蓝色, z:紫色, l:青色)
-# 参数2: 日志内容
+ALL_FUNCTIONS=(log_info log_error log_warn log_success log_separator log_highlight log_debug init_env prepare_source load_custom_feeds update_install_feeds load_custom_config download_packages compile_firmware)
 # ======================================================
 # 日志函数 - 添加颜色支持
 # ======================================================
@@ -117,9 +116,6 @@ else
     echo_color "z" "$1"
 fi
 }
-
-# 函数导出，确保在子shell和Docker环境中可用
-export -f echo_color log_info log_error log_warn log_success log_separator log_debug log_highlight
 
 # ======================================================
 # 初始化环境函数（仅主机编译使用）
@@ -398,11 +394,7 @@ compile_firmware() {
     fi
 }
 
-# ======================================================
-# 导出所有函数，使其在子shell中可用
-# ======================================================
-export -f log_info log_error init_env prepare_source load_custom_feeds update_install_feeds load_custom_config download_packages compile_firmware
-
+export -f "${ALL_FUNCTIONS[@]}"
 # ======================================================
 # 主函数（如果直接运行脚本时使用）
 # ======================================================
