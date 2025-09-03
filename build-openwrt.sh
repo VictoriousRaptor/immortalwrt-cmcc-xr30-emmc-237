@@ -202,9 +202,15 @@ fi
 
 log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
 rm -rf "$SOURCE_DIR/.config"
-cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_info "已加载.config文件"
-cd "$SOURCE_DIR"
-# make olddefconfig > /dev/null 2>&1
+cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config"
+SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk '{print $1}')
+DST_MD5=$(md5sum ${SOURCE_DIR}/.config" | awk '{print $1}')
+if [ "$SRC_MD5" = "$DST_MD5" ]; then
+    log_success "已成功加载.config配置文件！" 0
+else
+    log_error "加载失败：.config配置文件不一致！" 0
+     exit 1
+fi
 }
 
 # ======================================================
