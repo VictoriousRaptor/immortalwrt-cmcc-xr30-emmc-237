@@ -17,6 +17,7 @@ env:
   HIGH_POWER_5G: true
   SSH: false
   CACHEWRTBUILD_SWITCH: true
+  TRIGGER_SOURCE: '构建镜像触发编译固件'
 
 jobs:
   build-and-push:

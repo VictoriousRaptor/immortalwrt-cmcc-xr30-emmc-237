@@ -93,6 +93,7 @@ env:
   KERNEL_VERSION: 6.6
   LUCI_VERSION: 24.10
   BUILD_SCRIPT: ./build-openwrt.sh
+  TRIGGER_SOURCE: 手动触发
 
 jobs:
   build:
@@ -145,7 +146,6 @@ jobs:
           echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
           echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
           log_highlight "从源码更新检测工作流触发，使用传递的参数"
-          echo "${{ toJSON(github.event.client_payload) }}"
         else
           log_highlight "手动触发，使用默认参数或指定参数" 1
         fi
@@ -153,9 +153,6 @@ jobs:
         # 输出当前使用的参数
         log_highlight "使用的源码仓库: ${{ env.REPO_URL }}" 1
         log_highlight "使用的源码分支: ${{ env.REPO_BRANCH }}" 1
-        if [ -n "${{ env.COMMIT_HASH }}" ]; then
-          log_highlight "触发更新的提交哈希: ${{ env.COMMIT_HASH }}" 1
-        fi
         if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
           log_highlight "触发来源: ${{ env.TRIGGER_SOURCE }}" 1
         fi
@@ -247,7 +244,7 @@ jobs:
           log_highlight "共享目录源码体积：$(du -sh "$SOURCE_DIR" | awk "{print \$1}")" 1
           cp -f "$WORK_DIR/$CONFIG_FILE" "$SOURCE_DIR/.config" && log_success "已加载.config文件" 1
           cd "$SOURCE_DIR"
-          make defconfig # > /dev/null 2>&1
+          make defconfig > /dev/null 2>&1
         '
 
     - name: 克隆源码（主机模式）
@@ -310,7 +307,7 @@ jobs:
       id: extract_plugins
       run: |
         source ${{ env.BUILD_SCRIPT }}
-        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$WORK_DIR/$CONFIG_FILE" | 
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$SOURCE_DIR/$CONFIG_FILE" | 
           awk -F'[=]' '{name = substr($1, 16); print "  " name}')
         [ -z "$plugins" ] && plugins="  无额外插件（仅基础系统）"
         # 使用标准的EOF格式输出多行文本
@@ -347,7 +344,7 @@ jobs:
         - 设备型号：${{ env.DEVICE_NAME }}
         - Luci版本：${{ env.LUCI_VERSION }}
         - 内核版本：${{ env.KERNEL_VERSION }}
-        - 5G高功率25db：$( [[ "${{ env.HIGH_POWER_5G }}" =~ ^['"]?true['"]?$ ]] && echo "已" || echo "未" )启用
+        - 5G高功率25db：$( if [[ '${{ env.HIGH_POWER_5G }}' == 'true' ]]; then echo "已"; else echo "未"; fi )启用
         - 默认主题：${{ env.DEFAULT_THEME }}
         - 主机名：${{ env.HOSTNAME }}
         
