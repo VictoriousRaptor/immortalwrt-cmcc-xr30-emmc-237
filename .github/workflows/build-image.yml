@@ -10,7 +10,7 @@ env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6 
   REPO_BRANCH: openwrt-24.10-6.6
   # 自动编译固件默认配置
-  BUILD_TYPE: 'docker'
+  BUILD_TYPE: 'Docker'
   LAN_IP: '192.168.3.1'
   HOSTNAME: 'Rowrt'
   DEFAULT_THEME: 'argon'
@@ -48,9 +48,6 @@ jobs:
           if [ -n "$COMMIT_HASH" ]; then
             echo "触发更新的提交哈希: $COMMIT_HASH"
           fi
-          if [ -n "$TRIGGER_SOURCE" ]; then
-            echo "触发来源: $TRIGGER_SOURCE"
-          fi
           if [ -n "$COMMIT_LOGS" ]; then
             echo "触发更新的提交日志: $COMMIT_LOGS"
           fi
@@ -59,11 +56,11 @@ jobs:
         run: |
           AVAILABLE_SPACE=$(df -P / | tail -1 | awk '{print $4 / 1024 / 1024}' | cut -d '.' -f 1)
           echo "当前根目录可用空间: ${AVAILABLE_SPACE}GB"
-          if [ $AVAILABLE_SPACE -lt 20 ]; then  # 提高阈值到20GB，确保编译空间充足
-            echo "可用空间不足20GB，将执行深度清理"
+          if [ $AVAILABLE_SPACE -lt 10 ]; then  # 提高阈值到10GB，确保编译空间充足
+            echo "可用空间不足10GB，将执行深度清理"
             echo "NEED_CLEAN=true" >> $GITHUB_ENV
           else
-            echo "可用空间充足（≥20GB），无需清理"
+            echo "可用空间充足（≥10GB），无需清理"
             echo "NEED_CLEAN=false" >> $GITHUB_ENV
           fi
 
@@ -233,6 +230,11 @@ jobs:
           if [ $? -eq 0 ]; then
             echo "✅ 编译固件工作流已成功触发"
             echo "触发参数:"
+            echo "  - repo_url: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_url')"
+            echo "  - repo_branch: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"
+            echo "  - commit_hash: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
+            echo "  - commit_logs: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
+            echo "  - trigger_source: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.trigger_source')"
             echo "  - build_type: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.build_type')"
             echo "  - lan_ip: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.lan_ip')"
             echo "  - default_theme: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.default_theme')"
