@@ -273,9 +273,11 @@ if [ -d "$WORK_DIR/files" ]; then
 fi
 # 执行diy-part2.sh并进行错误处理
 if [ -f "$WORK_DIR/$DIY_P2_SH" ]; then
+    WORKDIR=$(pwd)
     log_info "执行diy-part2.sh..."
-    chmod +x "$WORK_DIR/$DIY_P2_SH"
-    "$WORK_DIR/$DIY_P2_SH"
+    cd "$SOURCE_DIR"
+    chmod +x "$WORKDIR/$DIY_P2_SH"
+    "$WORKDIR/$DIY_P2_SH"
     if [ $? -ne 0 ]; then
         log_error "diy-part2.sh执行失败！"
         return 1

@@ -151,13 +151,13 @@ jobs:
         fi
         
         # 输出当前使用的参数
-        log_highlight "使用的源码仓库: ${{ env.REPO_URL }}" 1
-        log_highlight "使用的源码分支: ${{ env.REPO_BRANCH }}" 1
-        if [ -n "${{ env.TRIGGER_SOURCE }}" ]; then
-          log_highlight "触发来源: ${{ env.TRIGGER_SOURCE }}" 1
+        log_highlight "使用的源码仓库: ${REPO_URL}" 1
+        log_highlight "使用的源码分支: ${REPO_BRANCH}" 1
+        if [ -n "${TRIGGER_SOURCE}" ]; then
+          log_highlight "触发来源: ${TRIGGER_SOURCE}" 1
         fi
-        if [ -n "${{ env.COMMIT_LOGS }}" ]; then
-          log_highlight "触发更新的提交日志: ${{ env.COMMIT_LOGS }}" 1
+        if [ -n "${COMMIT_LOGS}" ]; then
+          log_highlight "触发更新的提交日志: ${COMMIT_LOGS}" 1
         fi
 
     - name: 初始化编译环境（主机模式）
@@ -201,15 +201,15 @@ jobs:
           echo "$var=$value" >> .env
         done
         log_info "环境变量打包完成，共$(grep -c '=' .env)个变量" 1
-        docker pull "${{ env.DOCKER_IMAGE }}"
+        docker pull "${DOCKER_IMAGE}"
         log_info "当前用户ID: $CURRENT_UID, 组ID: $CURRENT_GID" 1
         docker run -d --name builder \
           --user $CURRENT_UID:$CURRENT_GID \
           --env-file .env \
-          -v "$PWD":"${{ env.DEFAULT_DIR }}":rw \
-          -e TZ="${{ env.TZ }}" \
+          -v "$PWD":"${DEFAULT_DIR}":rw \
+          -e TZ="${TZ}" \
           -e FORCE_UNSAFE_CONFIGURE=1 \
-          "${{ env.DOCKER_IMAGE }}" tail -f /dev/null
+          "${DOCKER_IMAGE}" tail -f /dev/null
         log_separator "验证容器运行状态" 1
         docker ps -a | grep builder
         if [ $? -ne 0 ]; then
@@ -337,16 +337,16 @@ jobs:
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
-        - 后台地址：${{ env.LAN_IP }}
+        - 后台地址：${LAN_IP}
         - 登录账号：root
         - 登录密码：无
-        - 设备信息：${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
-        - 设备型号：${{ env.DEVICE_NAME }}
-        - Luci版本：${{ env.LUCI_VERSION }}
-        - 内核版本：${{ env.KERNEL_VERSION }}
-        - 5G高功率25db：$( if [[ '${{ env.HIGH_POWER_5G }}' == 'true' ]]; then echo "已"; else echo "未"; fi )启用
-        - 默认主题：${{ env.DEFAULT_THEME }}
-        - 主机名：${{ env.HOSTNAME }}
+        - 设备信息：${DEVICE_TARGET}-${DEVICE_SUBTARGET}
+        - 设备型号：${DEVICE_NAME}
+        - Luci版本：${LUCI_VERSION}
+        - 内核版本：${KERNEL_VERSION}
+        - 5G高功率25db：$( if [[ '${HIGH_POWER_5G}' == 'true' ]]; then echo "已"; else echo "未"; fi )启用
+        - 默认主题：${DEFAULT_THEME}
+        - 主机名：${HOSTNAME}
         
         #### 已选插件列表
         ```
@@ -354,14 +354,14 @@ jobs:
         ```
         
         #### 编译信息
-        - 编译方式：${{ env.BUILD_TYPE }}
+        - 编译方式：${BUILD_TYPE}
         - 源码URL：${REPO_URL}
         - 源码分支：${REPO_BRANCH}
         - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
         - 工作流编号：#${{ github.run_number }}
         EOF
         cat release.txt
-        log_success "发布信息生成完成" 0
+        echo -e "发布信息生成完成"
 
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
@@ -423,7 +423,7 @@ jobs:
         if [[ "${{ github.event.inputs.build_type }}" == "Host" ]]; then
           compile_firmware
         else
-          docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && compile_firmware'
+          docker exec builder bash -c 'source ${BUILD_SCRIPT} && compile_firmware'
         fi
         if [[ $compile_exit_code -ne 0 ]]; then
           exit 1
@@ -433,11 +433,11 @@ jobs:
         echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
         EXTRACTED_LUCI_VERSION=$(grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
         ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
-        LUCI_VERSION=${EXTRACTED_LUCI_VERSION:-${{ env.LUCI_VERSION }}}
+        LUCI_VERSION=${EXTRACTED_LUCI_VERSION:-${LUCI_VERSION}}
         echo "LUCI_VERSION=${LUCI_VERSION}" >> $GITHUB_ENV
         EXTRACTED_KERNEL_VERSION=$(grep -oP 'CONFIG_LINUX_VERSION="\K[0-9]+\.[0-9]+\.[0-9]+' \
         ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
-        KERNEL_VERSION=${EXTRACTED_KERNEL_VERSION:-${{ env.KERNEL_VERSION }}}
+        KERNEL_VERSION=${EXTRACTED_KERNEL_VERSION:-${KERNEL_VERSION}}
         echo "KERNEL_VERSION=${KERNEL_VERSION}" >> $GITHUB_ENV
 
     - name: 检查编译后磁盘空间
@@ -541,16 +541,16 @@ jobs:
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
-        - 后台地址：${{ env.LAN_IP }}
+        - 后台地址：${LAN_IP}
         - 登录账号：root
         - 登录密码：无
-        - 设备信息：${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
-        - 设备型号：${{ env.DEVICE_NAME }}
-        - Luci版本：${{ env.LUCI_VERSION }}
-        - 内核版本：${{ env.KERNEL_VERSION }}
-        - 5G高功率25db：${{ env.HIGH_POWER_5G == 'true' && '已' || '未' }}启用
-        - 默认主题：${{ env.DEFAULT_THEME }}
-        - 主机名：${{ env.HOSTNAME }}
+        - 设备信息：${DEVICE_TARGET}-${DEVICE_SUBTARGET}
+        - 设备型号：${DEVICE_NAME}
+        - Luci版本：${LUCI_VERSION}
+        - 内核版本：${KERNEL_VERSION}
+        - 5G高功率25db：$( if [[ '${HIGH_POWER_5G}' == 'true' ]]; then echo "已"; else echo "未"; fi )启用
+        - 默认主题：${DEFAULT_THEME}
+        - 主机名：${HOSTNAME}
         
         #### 已选插件列表
         ```
@@ -558,7 +558,7 @@ jobs:
         ```
         
         #### 编译信息
-        - 编译方式：${{ env.BUILD_TYPE }}
+        - 编译方式：${BUILD_TYPE}
         - 源码URL：${REPO_URL}
         - 源码分支：${REPO_BRANCH}
         - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
