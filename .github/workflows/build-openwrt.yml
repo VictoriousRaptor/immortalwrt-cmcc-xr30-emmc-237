@@ -397,11 +397,11 @@ jobs:
         while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
-            echo "$count、$plugin"
+            echo "$count、$plugin" >> release.txt
           fi
         done <<(echo "$plugins")
         if [ $count -eq 0 ]; then
-          echo "无额外插件（仅基础系统）"
+          echo "无额外插件（仅基础系统）" >> release.txt
         fi
         cat /tmp/formatted_plugins.txt >> release.txt
         echo "```" >> release.txt
