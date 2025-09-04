@@ -294,7 +294,7 @@ jobs:
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_feeds'
         fi
-        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
+        echo "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
 
     - name: 更新并安装feeds
       run: |
@@ -303,7 +303,7 @@ jobs:
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && update_install_feeds'
         fi
-        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
+        echo "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
 
     - name: 加载自定义配置
       run: |
@@ -312,7 +312,7 @@ jobs:
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_config' 
         fi
-        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
+        echo "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
 
     - name: SSH远程连接
       uses: rogueme/debugger-action@main
