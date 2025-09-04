@@ -345,21 +345,19 @@ jobs:
       run: |
         source "${{ env.BUILD_SCRIPT }}"
         cd "$SOURCE_DIR"
+        log_separator "已选插件列表" 0
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{print substr($1, 16)}')
-        
-        # 保存纯插件列表到文件和环境变量
-        echo "$plugins" > "/tmp/plugins_list.txt"
-        log_separator "已选插件列表" 0
         count=0
-        echo "$plugins" | while IFS= read -r plugin; do
+        while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
             log_highlight "$count、$plugin" 0
           fi
-        done
-        [ $count -eq 0 ] && log_highlight "无额外插件（仅基础系统）" 0
-        log_success "共检测到 $count 个已选插件" 0
+        done < <(echo "$plugins")    
+        if [ $count -eq 0 ]; then
+          log_highlight "无额外插件（仅基础系统）" 0
+        fi
 
     - name: 提取缓存相关变量
       run: |
@@ -379,12 +377,12 @@ jobs:
           awk -F'[=]' '{print substr($1, 16)}')
         count=0
         formatted_plugins=""
-        echo "$plugins" | while IFS= read -r plugin; do
+        while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
             formatted_plugins+="$count、$plugin\n"
           fi
-        done
+        done < <(echo "$plugins")    
         if [ $count -eq 0 ]; then
           formatted_plugins="无额外插件（仅基础系统）"
         fi

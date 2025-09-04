@@ -351,9 +351,6 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     log_success "5G高功率25db设置完成"
 fi
 log_success "自定义配置加载完成！"
-log_info "执行make defconfig配置的验证与补全"
-make defconfig
-log_success "make defconfig执行完成"
 }
 
 # ======================================================
@@ -361,11 +358,13 @@ log_success "make defconfig执行完成"
 # 功能: 下载编译所需的软件包
 # ======================================================
 download_packages() {
-log_info "开始下载软件包..."
-
-# 下载软件包，带重试机制
 cd "$SOURCE_DIR"
+log_info "执行make defconfig配置的验证与补全，如果编译比.config配置文件少东西可以尝试删掉这个命令"
 make defconfig
+log_success "make defconfig执行完成"
+make defconfig
+# 下载软件包，带重试机制
+log_info "开始下载软件包..."
 for i in {1..3}; do 
     make download -j$(nproc) && break || (log_info "下载失败，重试第$i次" && sleep 10)
 done
