@@ -376,68 +376,47 @@ jobs:
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
         echo "设备信息哟哟哟：$DEVICE_TARGET"
-        SOURCE_REPO="${{ env.SOURCE_REPO }}"
-        DEVICE_TARGET="${{ env.DEVICE_TARGET }}"
-        DEVICE_SUBTARGET="${{ env.DEVICE_SUBTARGET }}"
-        DEVICE_NAME="${{ env.DEVICE_NAME }}"
-        SYSTEM_VERSION="${{ env.SYSTEM_VERSION }}"
-        KERNEL_VERSION="${{ env.KERNEL_VERSION }}"
-        LAN_IP="${{ env.LAN_IP }}"
-        HIGH_POWER_5G="${{ env.HIGH_POWER_5G }}"
-        DEFAULT_THEME="${{ env.DEFAULT_THEME }}"
-        HOSTNAME="${{ env.HOSTNAME }}"
-        BUILD_TYPE="${{ env.BUILD_TYPE }}"
-        REPO_URL="${{ env.REPO_URL }}"
-        REPO_BRANCH="${{ env.REPO_BRANCH }}"
-        GITHUB_RUN_NUMBER="${{ github.run_number }}"
-        > /tmp/formatted_plugins.txt
         if [ ! -s /tmp/formatted_plugins.txt ]; then
           plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
             awk -F'[=]' '{print substr($1, 16)}')
-          count=0
-          echo "$plugins" > /tmp/plugins_list.txt
-          while IFS= read -r plugin; do
-            if [ -n "$plugin" ]; then
-              count=$((count+1))
-              echo "$count、$plugin" >> /tmp/formatted_plugins.txt
-            fi
-          done < /tmp/plugins_list.txt
-          if [ $count -eq 0 ]; then
-            echo "无额外插件（仅基础系统）" > /tmp/formatted_plugins.txt
-          fi
-        fi
-        
         # 使用echo命令逐行构建release.txt，避免变量替换问题
         echo "### $DEVICE_NAME-immortalwrt 固件" > release.txt
         echo "" >> release.txt
         echo "- 后台地址：$LAN_IP" >> release.txt
         echo "- 登录账号：root" >> release.txt
         echo "- 登录密码：无" >> release.txt
-        echo "- 设备信息：$DEVICE_TARGET-$DEVICE_SUBTARGET" >> release.txt
-        echo "- 设备型号：$DEVICE_NAME" >> release.txt
-        echo "- 系统版本：$SYSTEM_VERSION" >> release.txt
-        echo "- 内核版本：$KERNEL_VERSION" >> release.txt
-        echo "- 5G高功率25db：$(if [[ "$HIGH_POWER_5G" == "true" ]]; then echo "已"; else echo "未"; fi)启用" >> release.txt
-        echo "- 默认主题：$DEFAULT_THEME" >> release.txt
-        echo "- 主机名：$HOSTNAME" >> release.txt
+        echo "- 设备信息：${DEVICE_TARGET}-${DEVICE_SUBTARGET}" >> release.txt
+        echo "- 设备型号：${DEVICE_NAME}" >> release.txt
+        echo "- 系统版本：${SYSTEM_VERSION}" >> release.txt
+        echo "- 内核版本：${KERNEL_VERSION}" >> release.txt
+        echo "- 5G高功率25db：$(if [[ "${HIGH_POWER_5G}" == "true" ]]; then echo "已"; else echo "未"; fi)启用" >> release.txt
+        echo "- 默认主题：${DEFAULT_THEME}" >> release.txt
+        echo "- 主机名：${HOSTNAME}" >> release.txt
         echo "" >> release.txt
         echo "#### 已选插件列表" >> release.txt
         echo "```" >> release.txt
+        count=0
+        while IFS= read -r plugin; do
+          if [ -n "$plugin" ]; then
+            count=$((count+1))
+            echo "$count、$plugin"
+          fi
+        done <<(echo "$plugins")
+        if [ $count -eq 0 ]; then
+          echo "无额外插件（仅基础系统）"
+        fi
         cat /tmp/formatted_plugins.txt >> release.txt
         echo "```" >> release.txt
         echo "" >> release.txt
         echo "#### 编译信息" >> release.txt
-        echo "- 编译方式：$BUILD_TYPE" >> release.txt
-        echo "- 源码URL：$REPO_URL" >> release.txt
-        echo "- 源码分支：$REPO_BRANCH" >> release.txt
+        echo "- 编译方式：${BUILD_TYPE}" >> release.txt
+        echo "- 源码URL：${REPO_URL}" >> release.txt
+        echo "- 源码分支：${REPO_BRANCH}" >> release.txt
         echo "- 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")" >> release.txt
-        echo "- 工作流编号：#$GITHUB_RUN_NUMBER" >> release.txt
+        echo "- 工作流编号：#${GITHUB_RUN_NUMBER}" >> release.txt
         cat release.txt
         log_success "发布信息生成完成" 0
         exit 1
-
-
-
         
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
