@@ -90,8 +90,8 @@ env:
   CCACHE_SIZE: 10G
   CCACHE_COMPRESSION_LEVEL: 6
   DEVICE_NAME: cmcc_rax3000m-emmc
-  KERNEL_VERSION: 6.6
-  SYSTEM_VERSION: 24.10
+  KERNEL_VERSION: "6.6"
+  SYSTEM_VERSION: "24.10"
   BUILD_SCRIPT: ./build-openwrt.sh
   TRIGGER_SOURCE: ${{ github.event.inputs.trigger_source || github.event.client_payload.inputs.trigger_source || '手动触发' }}
 
@@ -373,19 +373,20 @@ jobs:
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
-        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{print substr($1, 16)}')
         count=0
-        formatted_plugins=""
+        echo "$plugins" > /tmp/plugins_list.txt
         while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
-            formatted_plugins+="$count、$plugin\n"
+            echo "$count、$plugin"
           fi
-        done < <(echo "$plugins")    
+        done < /tmp/plugins_list.txt 
         if [ $count -eq 0 ]; then
-          formatted_plugins="无额外插件（仅基础系统）"
+          echo "无额外插件（仅基础系统）" > /tmp/formatted_plugins.txt
         fi
+        formatted_plugins=$(cat /tmp/formatted_plugins.txt)
         # 生成发布信息
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
@@ -576,17 +577,17 @@ jobs:
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
           awk -F'[=]' '{print substr($1, 16)}')
         count=0
-        formatted_plugins=""
+        echo "$plugins" > /tmp/plugins_list.txt
         while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
-            formatted_plugins+="$count、$plugin\n"
+            echo "$count、$plugin" >> /tmp/formatted_plugins.txt
           fi
-        done < <(echo "$plugins")
+        done < /tmp/plugins_list.txt
         if [ $count -eq 0 ]; then
-          formatted_plugins="无额外插件（仅基础系统）"
+          echo "无额外插件（仅基础系统）" > /tmp/formatted_plugins.txt
         fi
-        # 生成发布信息
+        formatted_plugins=$(cat /tmp/formatted_plugins.txt)
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
