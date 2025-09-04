@@ -351,7 +351,9 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     log_info "5G高功率25db设置完成"
 fi
 log_info "自定义配置加载完成！"
+log_info "执行make defconfig进行配置验证与补全配置"
 make defconfig
+log_info "make defconfig执行完成"
 }
 
 # ======================================================

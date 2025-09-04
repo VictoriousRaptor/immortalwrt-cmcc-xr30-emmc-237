@@ -274,24 +274,19 @@ jobs:
           fi
           rm -rf "${SOURCE_DIR}/.config"
         else
-          log_warn "固件源码.config文件不存在" 1
+          log_warn "未发现固件源码.config文件" 1
         fi
         cp -f "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
         SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
         if [ "$SRC_MD5" = "$WORK_CONFIG_MD5" ]; then
-            log_success "加载新.config配置文件成功！" 1
+            log_success "加载本项目.config配置文件成功！" 1
         else
-            log_error "加载新.config配置文件失败：固件源码.configMD5：$SRC_MD5！" 1
+          log_error "加载本项目.config配置文件失败：固件源码.configMD5：$SRC_MD5" 1
             log_info "${WORK_DIR}/${CONFIG_FILE}文件信息↓↓↓："
             log_highlight "$(ls -al "${WORK_DIR}/${CONFIG_FILE}")"
             log_info "${SOURCE_DIR}/.config文件信息↓↓↓："
             log_highlight "$(ls -al "${SOURCE_DIR}/.config")"
             exit 1
-        fi
-        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
-            cd "${SOURCE_DIR}" && make defconfig
-        else
-            docker exec builder bash -c "cd \"${SOURCE_DIR}\" && make defconfig"
         fi
 
     - name: 加载自定义feeds
@@ -353,7 +348,7 @@ jobs:
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
-        echo -n "$plugins" > "${{ env.WORK_DIR }}/plugins_list.txt"
+        echo -n "$plugins" > "/tmp/plugins_list.txt"
         echo "PLUGINS<<EOF" >> $GITHUB_ENV
         echo "$plugins" >> $GITHUB_ENV
         echo "EOF" >> $GITHUB_ENV
@@ -396,7 +391,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "${{ env.WORK_DIR }}/plugins_list.txt" || echo "$PLUGINS")
+        $(cat "/tmp/plugins_list.txt" || echo "$PLUGINS")
         ```
         
         #### 编译信息
@@ -580,7 +575,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "${{ env.WORK_DIR }}/plugins_list.txt" || echo "$PLUGINS")
+        $(cat "/tmp/plugins_list.txt" || echo "$PLUGINS")
         ```
         
         #### 编译信息
