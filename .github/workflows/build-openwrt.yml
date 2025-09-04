@@ -345,9 +345,9 @@ jobs:
       run: |
         source "${{ env.BUILD_SCRIPT }}"
         cd "$SOURCE_DIR"
-        log_separator "已选插件列表" 0
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{print substr($1, 16)}')
+        log_separator "已选插件列表[$(echo "$plugins" | grep -c '^')]" 0
         count=0
         while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
@@ -425,7 +425,8 @@ jobs:
         path: |
           ${{ env.SOURCE_DIR }}/.ccache
           ${{ env.SOURCE_DIR }}/staging_dir
-
+          ${{ env.SOURCE_DIR }}/dl
+    
     - name: 刷新缓存
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
       run: |
@@ -434,7 +435,10 @@ jobs:
               find "$dir" -type f -exec touch {} +
           done
         fi
-
+        if [ -d "${{ env.SOURCE_DIR }}/dl" ]; then
+          chmod -R 755 "${{ env.SOURCE_DIR }}/dl"
+        fi
+    
     - name: 下载软件包
       id: package
       run: |
@@ -455,9 +459,9 @@ jobs:
         remove_tool_cache: true
         remove_swap: true
         remove_docker_image: ${{ github.event.inputs.build_type == 'Host' && 'true' || 'false' }}
-        # remove_packages: ""
+        remove_packages: false
         remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/share/chromium /usr/local/share/powershell"
-        # 如果释放空间不够可在remove_packages添加google-cloud-cli temurin-* azure-cli microsoft-edge-stable google-chrome-stable firefox postgresql* *llvm* mysql* dotnet-sdk-*
+        # 如果释放空间不够可在remove_packages的false改为[google-cloud-cli temurin-* azure-cli microsoft-edge-stable google-chrome-stable firefox postgresql* *llvm* mysql* dotnet-sdk-*]
         # 如果释放空间不够可在remove_folders添加/usr/local/lib/node_modules
         # 如果释放空间不够可将remove_android改为true
 
@@ -573,12 +577,12 @@ jobs:
           awk -F'[=]' '{print substr($1, 16)}')
         count=0
         formatted_plugins=""
-        echo "$plugins" | while IFS= read -r plugin; do
+        while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
             formatted_plugins+="$count、$plugin\n"
           fi
-        done
+        done < <(echo "$plugins")
         if [ $count -eq 0 ]; then
           formatted_plugins="无额外插件（仅基础系统）"
         fi

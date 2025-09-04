@@ -359,7 +359,7 @@ log_success "自定义配置加载完成！"
 # ======================================================
 download_packages() {
 cd "$SOURCE_DIR"
-log_info "执行make defconfig配置的验证与补全，如果编译比.config配置文件少东西可以尝试删掉这个命令"
+log_info "执行make defconfig进行配置的验证与补全，会改变.config配置文件，如果编译比原.config配置文件少东西可以尝试删掉这个命令"
 make defconfig
 log_success "make defconfig执行完成"
 make defconfig
