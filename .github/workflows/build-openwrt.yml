@@ -394,7 +394,7 @@ jobs:
         - 主机名：${HOSTNAME}
 
         #### 已选插件列表
-        \`\`\`
+        ```
         EOF
         count=0
         while IFS= read -r plugin; do
@@ -407,7 +407,7 @@ jobs:
           echo "无额外插件（仅基础系统）" >> release.txt
         fi
         cat >> release.txt <<EOF
-        \`\`\`
+        ```
 
         #### 编译信息
         - 编译方式：${BUILD_TYPE}
@@ -578,47 +578,47 @@ jobs:
       shell: bash
       run: |
         source ${{ env.BUILD_SCRIPT }}
-        if [ ! -s /tmp/formatted_plugins.txt ]; then
-          plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
-            awk -F'[=]' '{print substr($1, 16)}')
-          count=0
-          echo "$plugins" > /tmp/plugins_list.txt
-          while IFS= read -r plugin; do
-            if [ -n "$plugin" ]; then
-              count=$((count+1))
-              echo "$count、$plugin" >> /tmp/formatted_plugins.txt
-            fi
-          done < /tmp/plugins_list.txt
-          if [ $count -eq 0 ]; then
-            echo "无额外插件（仅基础系统）" > /tmp/formatted_plugins.txt
+        grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" 2>/dev/null | 
+          awk -F'[=]' '{print substr($1, 16)}' | 
+          sed '/^$/d' > "/tmp/plugins.tmp"
+
+        cat > release.txt <<EOF
+        ### ${DEVICE_NAME}-immortalwrt 固件
+
+        - 后台地址：${LAN_IP}
+        - 登录账号：root
+        - 登录密码：无
+        - 设备信息：${DEVICE_TARGET}-${DEVICE_SUBTARGET}
+        - 设备型号：${DEVICE_NAME}
+        - 系统版本：${SYSTEM_VERSION}
+        - 内核版本：${KERNEL_VERSION}
+        - 5G高功率25db：$(if [[ "${HIGH_POWER_5G}" == "true" ]]; then echo "已"; else echo "未"; fi)启用
+        - 默认主题：${DEFAULT_THEME}
+        - 主机名：${HOSTNAME}
+
+        #### 已选插件列表
+        \`\`\`
+        EOF
+        count=0
+        while IFS= read -r plugin; do
+          if [[ -n "${plugin}" ]]; then
+            count=$((count + 1))
+            echo "${count}、${plugin}" >> release.txt
           fi
+        done < "/tmp/plugins.tmp"
+        if [[ ${count} -eq 0 ]]; then
+          echo "无额外插件（仅基础系统）" >> release.txt
         fi
-        
-        # 使用echo命令逐行构建release.txt，避免变量替换问题
-        echo "### $DEVICE_NAME-immortalwrt 固件" > release.txt
-        echo "" >> release.txt
-        echo "- 后台地址：$LAN_IP" >> release.txt
-        echo "- 登录账号：root" >> release.txt
-        echo "- 登录密码：无" >> release.txt
-        echo "- 设备信息：$DEVICE_TARGET-$DEVICE_SUBTARGET" >> release.txt
-        echo "- 设备型号：$DEVICE_NAME" >> release.txt
-        echo "- 系统版本：$SYSTEM_VERSION" >> release.txt
-        echo "- 内核版本：$KERNEL_VERSION" >> release.txt
-        echo "- 5G高功率25db：$(if [[ "$HIGH_POWER_5G" == "true" ]]; then echo "已"; else echo "未"; fi)启用" >> release.txt
-        echo "- 默认主题：$DEFAULT_THEME" >> release.txt
-        echo "- 主机名：$HOSTNAME" >> release.txt
-        echo "" >> release.txt
-        echo "#### 已选插件列表" >> release.txt
-        echo "```" >> release.txt
-        cat /tmp/formatted_plugins.txt >> release.txt
-        echo "```" >> release.txt
-        echo "" >> release.txt
-        echo "#### 编译信息" >> release.txt
-        echo "- 编译方式：$BUILD_TYPE" >> release.txt
-        echo "- 源码URL：$REPO_URL" >> release.txt
-        echo "- 源码分支：$REPO_BRANCH" >> release.txt
-        echo "- 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")" >> release.txt
-        echo "- 工作流编号：#$GITHUB_RUN_NUMBER" >> release.txt
+        cat >> release.txt <<EOF
+        \`\`\`
+
+        #### 编译信息
+        - 编译方式：${BUILD_TYPE}
+        - 源码URL：${REPO_URL}
+        - 源码分支：${REPO_BRANCH}
+        - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
+        - 工作流编号：#${GITHUB_RUN_NUMBER}
+        EOF
         cat release.txt
         log_success "发布信息生成完成" 0
 
