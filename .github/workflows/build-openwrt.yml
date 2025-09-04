@@ -375,9 +375,8 @@ jobs:
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
-        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
+        mapfile -t plugins < <(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
           awk -F'[=]' '{print substr($1, 16)}')
-        # 使用echo命令逐行构建release.txt，避免变量替换问题
         echo "### $DEVICE_NAME-immortalwrt 固件" > release.txt
         echo "" >> release.txt
         echo "- 后台地址：$LAN_IP" >> release.txt
@@ -394,14 +393,12 @@ jobs:
         echo "#### 已选插件列表" >> release.txt
         echo "```" >> release.txt
         count=0
-        if [ -n "$plugins" ]; then
-          echo "$plugins" | while IFS= read -r plugin; do
-            if [ -n "$plugin" ]; then
-              count=$((count+1))
-              echo "$count、$plugin" >> release.txt
-            fi
-          done
-        fi
+        for plugin in "${plugins[@]}"; do
+          if [ -n "$plugin" ]; then
+            count=$((count+1))
+            echo "$count、$plugin" >> release.txt
+          fi
+        done
         if [ $count -eq 0 ]; then
           echo "无额外插件（仅基础系统）" >> release.txt
         fi
