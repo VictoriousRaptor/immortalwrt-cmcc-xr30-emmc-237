@@ -23,32 +23,28 @@ else
     exit 1
 fi
 # 修改插件名字
-grep -rl '"终端"' . | xargs -r sed -i 's?"终端"?"TTYD"?g'
-if grep -r '"TTYD 终端"' . > /dev/null; then
-    grep -rl '"TTYD 终端"' . | xargs -r sed -i 's?"TTYD 终端"?"TTYD"?g'
-fi
-# 网络存储
-if grep -r '"网络存储"' . > /dev/null; then
-    grep -rl '"网络存储"' . | xargs -r sed -i 's?"网络存储"?"NAS"?g'
-fi
-if grep -r '"实时流量监测"' . > /dev/null; then
-    grep -rl '"实时流量监测"' . | xargs -r sed -i 's?"实时流量监测"?"流量"?g'
-fi
-if grep -r '"KMS 服务器"' . > /dev/null; then
-    grep -rl '"KMS 服务器"' . | xargs -r sed -i 's?"KMS 服务器"?"KMS激活"?g'
-fi
-if grep -r '"USB 打印服务器"' . > /dev/null; then
-    grep -rl '"USB 打印服务器"' . | xargs -r sed -i 's?"USB 打印服务器"?"打印服务"?g'
-fi
-if grep -r '"Web 管理"' . > /dev/null; then
-    grep -rl '"Web 管理"' . | xargs -r sed -i 's?"Web 管理"?"Web管理"?g'
-fi
-if grep -r '"管理权"' . > /dev/null; then
-    grep -rl '"管理权"' . | xargs -r sed -i 's?"管理权"?"账号管理"?g'
-fi
-if grep -r '"带宽监控"' . > /dev/null; then
-    grep -rl '"带宽监控"' . | xargs -r sed -i 's?"带宽监控"?"监控"?g'
-fi
+# 参数1: 原名称
+# 参数2: 新名称
+update_name(){
+    local old_name=$1
+    local new_name=$2
+    if grep -r '"$old_name"' . > /dev/null; then
+        echo -e "✅ 找到 $old_name，开始替换为 $new_name"
+        grep -rl '"$old_name"' . | xargs -r sed -i 's?"$old_name"?"$new_name"?g'
+    else
+        echo -e "ℹ️ 未找到 $old_name，跳过替换"
+    fi
+}
+# 替换插件名字
+update_name "终端" "TTYD"
+update_name "TTYD 终端" "TTYD"
+update_name "网络存储" "NAS"
+update_name "实时流量监测" "流量监测"
+update_name "KMS 服务器" "KMS"
+update_name "USB 打印服务器" "打印服务"
+update_name "Web 管理" "Web管理"
+update_name "管理权" "账号管理"
+update_name "带宽监控" "监控"
 
 # 解决 libxcrypt 因 -Werror=format-nonliteral 导致的编译错误
 LIBXCRYPT_MAKEFILE="feeds/packages/libs/libxcrypt/Makefile"
@@ -79,7 +75,7 @@ fi
 if [ -f ".config" ]; then
     echo "✅ .config文件存在，配置行数: $(wc -l .config | awk '{print $1}')"
 else
-    echo "❌ 未找到.config文件" >&2
+    echo "ℹ️ 未找到.config文件" >&2
     exit 1
 fi
 

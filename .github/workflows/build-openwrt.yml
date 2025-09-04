@@ -274,7 +274,7 @@ jobs:
           log_warn "未发现固件源码.config文件" 1
         fi
         cp -f "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
-        SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
+        SRC_MD5=$(md5sum "${SOURCE_DIR}/.config" | awk "{print \$1}")
         if [ "$SRC_MD5" = "$WORK_CONFIG_MD5" ]; then
             log_success "加载本项目.config配置文件成功！" 1
         else
@@ -285,6 +285,7 @@ jobs:
             log_highlight "$(ls -al "${SOURCE_DIR}/.config")"
             exit 1
         fi
+        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
 
     - name: 加载自定义feeds
       run: |
@@ -293,7 +294,8 @@ jobs:
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_feeds'
         fi
-    
+        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
+
     - name: 更新并安装feeds
       run: |
         if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
@@ -301,7 +303,8 @@ jobs:
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && update_install_feeds'
         fi
-    
+        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
+
     - name: 加载自定义配置
       run: |
         if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
@@ -309,7 +312,8 @@ jobs:
         else
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && load_custom_config' 
         fi
-      
+        log_info "配置文件总行数: $(wc -l "${SOURCE_DIR}/.config" | awk '{print $1}')"
+
     - name: SSH远程连接
       uses: rogueme/debugger-action@main
       if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
