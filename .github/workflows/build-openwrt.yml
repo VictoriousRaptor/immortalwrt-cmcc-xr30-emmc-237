@@ -266,15 +266,15 @@ jobs:
           diff "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
           SOURCE_CONFIG_MD5=$(md5sum "${SOURCE_DIR}/.config" | awk "{print \$1}")
           if [ "$SOURCE_CONFIG_MD5" = "$WORK_CONFIG_MD5" ]; then
-              log_info "项目.config文件与固件源码.config一致，无需更新，固件源码.configMD5校验：$SOURCE_CONFIG_MD5" 1
+              log_success "项目.config文件与固件源码.config一致，无需更新，固件源码.configMD5校验：$SOURCE_CONFIG_MD5" 1
               exit 0
           else
               log_info "项目.config文件MD5校验：$WORK_CONFIG_MD5" 1
-              log_info "项目.config文件与固件源码.config不一致，需要更新" 1
+              log_warn "项目.config文件与固件源码.config不一致，需要更新" 1
           fi
           rm -rf "${SOURCE_DIR}/.config"
         else
-          log_info "固件源码.config文件不存在" 1
+          log_warn "固件源码.config文件不存在" 1
         fi
         cp -f "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
         SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
@@ -283,15 +283,15 @@ jobs:
         else
             log_error "加载新.config配置文件失败：固件源码.configMD5：$SRC_MD5！" 1
             log_info "${WORK_DIR}/${CONFIG_FILE}文件信息↓↓↓："
-            log_info "$(ls -al "${WORK_DIR}/${CONFIG_FILE}")"
+            log_highlight "$(ls -al "${WORK_DIR}/${CONFIG_FILE}")"
             log_info "${SOURCE_DIR}/.config文件信息↓↓↓："
-            log_info "$(ls -al "${SOURCE_DIR}/.config")"
+            log_highlight "$(ls -al "${SOURCE_DIR}/.config")"
             exit 1
         fi
         if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
-            make defconfig
+            cd "${SOURCE_DIR}" && make defconfig
         else
-            docker exec builder bash -c 'make defconfig'
+            docker exec builder bash -c "cd \"${SOURCE_DIR}\" && make defconfig"
         fi
 
     - name: 加载自定义feeds
