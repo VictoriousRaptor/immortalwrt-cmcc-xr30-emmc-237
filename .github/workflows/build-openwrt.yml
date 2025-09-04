@@ -257,9 +257,10 @@ jobs:
           log_highlight "  - 到：${SOURCE_DIR}" 1
           log_highlight "共享目录源码体积：$(du -sh "${SOURCE_DIR}" | awk "{print \$1}")" 1
         '
+ 
     - name: 加载.config配置
       run: |
-          source ${{ env.BUILD_SCRIPT }} && load_config
+          source ${{ env.BUILD_SCRIPT }}
           WORK_CONFIG_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
           if [ -f "${SOURCE_DIR}/${CONFIG_FILE}" ]; then
             SOURCE_CONFIG_MD5=$(md5sum "${SOURCE_DIR}/.config" | awk "{print \$1}")
