@@ -502,10 +502,10 @@ jobs:
       shell: bash  # 关键：用Bash执行，支持嵌套通配符（*/*）展开
       run: |
         source ${{ env.BUILD_SCRIPT }}
-        log_highlight "DEVICE_TARGET: $DEVICE_TARGET" 0
-        log_highlight "DEVICE_SUBTARGET: $DEVICE_SUBTARGET" 0
-        log_highlight "SOURCE_DIR: ${{ env.SOURCE_DIR }}" 0
+        log_highlight "厂商: $DEVICE_TARGET" 0
+        log_highlight "平台: $DEVICE_SUBTARGET" 0
         log_highlight "当前工作目录: $PWD" 0
+        log_highlight "源码固件目录: ${{ env.SOURCE_DIR }}" 0
         shopt -s nullglob
         FIRMWARE_DIR_CANDIDATES="${{ env.SOURCE_DIR }}/bin/targets/*/*"
         FIRMWARE_DIRS=($FIRMWARE_DIR_CANDIDATES)
@@ -513,9 +513,7 @@ jobs:
           log_error "通配符未匹配到任何固件目录！检查路径：${{ env.SOURCE_DIR }}/bin/targets/" 0
           exit 1
         fi
-        FIRMWARE_DIR="${FIRMWARE_DIRS[0]}"
-        log_highlight "通配符匹配到的固件目录: $FIRMWARE_DIR" 0
-        cd "$FIRMWARE_DIR"
+        cd "${FIRMWARE_DIRS[0]}"
         rm -rf packages *.buildinfo *.manifest *.json *bl2.bin 2>/dev/null || log_warn "注意：某些文件可能不存在，继续处理" 0
         log_highlight "整理后的固件文件列表:" 0
         ls -lh || log_warn "警告：当前目录无文件可列出" 0
@@ -554,6 +552,7 @@ jobs:
         echo "url=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_OUTPUT
 
     - name: 生成发布信息
+      id: tag
       shell: bash
       run: |
         source ${{ env.BUILD_SCRIPT }}
@@ -601,6 +600,7 @@ jobs:
         EOF
         cat release.txt
         log_success "发布信息生成完成" 0
+        echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 上传固件到Release
       uses: softprops/action-gh-release@v2

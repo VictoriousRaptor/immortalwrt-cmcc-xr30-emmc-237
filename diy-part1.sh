@@ -18,7 +18,7 @@ add_feed() {
     local url=$2
     # 检查feeds.conf.default中是否已包含该源
     if ! grep -q "src-git $name $url" feeds.conf.default; then
-        echo "添加feed源：$name"
+        echo "添加feed源：$name，地址：$url"
         echo "src-git $name $url" >> feeds.conf.default
     else
         echo "ℹ️ feed源 $name 已存在，跳过添加"

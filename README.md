@@ -1,5 +1,3 @@
-**English** | [中文](https://p3terx.com/archives/build-openwrt-with-github-actions.html)
-
 # ImmortalWrt 24.10 for CMCC RAX3000M (eMMC)
 
 [![LICENSE](https://img.shields.io/github/license/mashape/apistatus.svg?style=flat-square&label=LICENSE)](https://github.com/P3TERX/Actions-OpenWrt/blob/master/LICENSE)
@@ -14,6 +12,8 @@
 - 编译其他设备
    - 1.替换.config配置文件或更改其相关设备内容
    - 2.通过‘make menuconfig’选择对应设备
+   ### 注意：需要在.github\workflows\build-openwrt.yml文件里的env环境变量中`DEVICE_NAME`的`cmcc_rax3000m-emmc`设备机型改为要编译的机型
+
 ## 特性
 
 - **自动化编译**：使用GitHub Actions实现自动构建流程
@@ -131,12 +131,12 @@
 ## 项目结构
 
 ```
-├── .config              # OpenWrt编译配置文件
 ├── .github/workflows/   # GitHub Actions工作流配置
 │   ├── build-image.yml  # 构建镜像工作流
 │   ├── build-openwrt.yml # 构建OpenWrt固件工作流
 │   └── update-checker.yml # 更新检查工作流
 ├── Dockerfile           # Docker镜像配置
+├── .config              # OpenWrt编译配置文件
 ├── build-openwrt.sh     # 主要构建脚本
 ├── diy-part1.sh         # 自定义脚本（更新feeds前）
 ├── diy-part2.sh         # 自定义脚本（更新feeds后）
