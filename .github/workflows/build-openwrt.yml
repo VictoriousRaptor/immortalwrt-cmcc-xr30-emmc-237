@@ -375,10 +375,8 @@ jobs:
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
-        echo "设备信息哟哟哟：$DEVICE_TARGET"
-        if [ ! -s /tmp/formatted_plugins.txt ]; then
-          plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
-            awk -F'[=]' '{print substr($1, 16)}')
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
+          awk -F'[=]' '{print substr($1, 16)}')
         # 使用echo命令逐行构建release.txt，避免变量替换问题
         echo "### $DEVICE_NAME-immortalwrt 固件" > release.txt
         echo "" >> release.txt
