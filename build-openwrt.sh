@@ -265,10 +265,10 @@ if [ -d "$WORK_DIR/files" ]; then
     cp -r "$WORK_DIR/files" "$SOURCE_DIR/files" && log_success "已复制自定义files目录"
 fi
 # 执行diy-part2.sh并进行错误处理
-if [ -f "$WORK_DIR/$DIY_P2_SH" ]; then
-    WORKDIR=$(pwd)
+WORKDIR=$(pwd)
+cd "$SOURCE_DIR"
+if [ -f "$WORKDIR/$DIY_P2_SH" ]; then
     log_info "执行diy-part2.sh..."
-    cd "$SOURCE_DIR"
     chmod +x "$WORKDIR/$DIY_P2_SH"
     "$WORKDIR/$DIY_P2_SH"
     if [ $? -ne 0 ]; then

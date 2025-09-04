@@ -109,25 +109,22 @@ jobs:
         chmod +x ${{ env.BUILD_SCRIPT }}
         source ${{ env.BUILD_SCRIPT }}
         log_info "当前目录：$PWD" 0
-        log_warn "警告" 0
-        log_warn "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！" 0
-        log_highlight "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n" 0
+        log_warn "警告：分配的服务器性能有限，若选择插件过多，务必注意CPU性能！" 0
+        log_highlight "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673" 0
         log_info "--------------------------CPU信息--------------------------" 0
-        log_highlight "CPU物理数量：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)" 0
-        log_highlight "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n" 0
+        log_highlight "CPU信息：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)" 0
+        log_highlight "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c)" 0
         log_info "--------------------------内存信息--------------------------" 0
-        log_highlight "已安装内存详细信息：" 0
-        ddrminfo="$(sudo lshw -short -C memory | grep GiB) \n"
+        ddrminfo="$(sudo lshw -short -C memory | grep GiB)"
         echo -e "$ddrminfo" | while IFS= read -r line; do
           log_highlight "$line" 0
         done
-        log_info "--------------------------硬盘信息--------------------------" 0
-        log_highlight "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" 0
-        log_info "硬盘信息：" 0
-        hddinfo="$(df -hT) \n"
+        log_info "--------------------硬盘信息-硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)---------------------" 0
+        hddinfo="$(df -hT)"
         echo -e "$hddinfo" | while IFS= read -r line; do
           log_highlight "$line" 0
         done
+
     - name: 设置环境变量
       run: |
         # 根据触发来源设置环境变量
@@ -598,6 +595,7 @@ jobs:
         log_highlight "staging: $(du -sh $OPENWRT_PATH/staging_dir | cut -f 1)" 0
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: 清理旧工作流记录
       uses: GitRML/delete-workflow-runs@main
       with:
