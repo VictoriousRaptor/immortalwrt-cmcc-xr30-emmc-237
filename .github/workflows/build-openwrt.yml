@@ -330,12 +330,12 @@ jobs:
         CONFIG_SOURCE="$SOURCE_DIR/.config"
         cp -f "$CONFIG_SOURCE" "$CONFIG_FILE" && echo_color g "已复制$CONFIG_SOURCE到项目根目录"
         if git diff --quiet "$CONFIG_FILE"; then
-            log_info ".config未修改，无需上传" 0
+            log_info ".config 未修改，无需上传" 0
         else
             git add "$CONFIG_FILE"
             git commit -m "自动同步SSH修改的.config（Actions #${GITHUB_RUN_NUMBER}）"
             git push "https://${{ secrets.REPO_TOKEN }}@github.com/${{ github.repository }}.git" "${{ github.ref }}"
-            log_success ".config已上传" 0
+            log_success ".config更新上传" 0
         fi
 
     - name: 提取已选插件列表
@@ -412,14 +412,23 @@ jobs:
         git config --global user.email "actions@github.com"
         cd "$WORK_DIR"
         CONFIG_SOURCE="$SOURCE_DIR/.config"
-        cp -f "$CONFIG_SOURCE" "defconfig.config" && echo_color g "已复制$CONFIG_SOURCE到项目根目录的defconfig.config"
-        if git diff --quiet "defconfig.config"; then
-            log_info "defconfig.config未修改，无需上传" 0
-        else
+        cp -f "$CONFIG_SOURCE" "defconfig.config" && log_info "已复制$CONFIG_SOURCE到项目根目录的defconfig.config" 0
+        if [ ! -f "defconfig.config" ]; then
+            log_err "defconfig.config 不存在，无法上传！" 1
+        elif ! git ls-files --error-unmatch "defconfig.config" >/dev/null 2>&1; then
             git add "defconfig.config"
-            git commit -m "上传处理后的.config到defconfig.config（Actions #${GITHUB_RUN_NUMBER}）"
+            git commit -m "初始化 defconfig.config（Actions #${GITHUB_RUN_NUMBER}）"
             git push "https://${{ secrets.REPO_TOKEN }}@github.com/${{ github.repository }}.git" "${{ github.ref }}"
-            log_success "defconfig.config已上传" 0
+            log_success "defconfig.config 首次上传成功" 0
+        else
+            if git diff --quiet "defconfig.config"; then
+                log_info "defconfig.config 未修改，无需上传" 0
+            else
+                git add "defconfig.config"
+                git commit -m "更新 defconfig.config（Actions #${GITHUB_RUN_NUMBER}）"
+                git push "https://${{ secrets.REPO_TOKEN }}@github.com/${{ github.repository }}.git" "${{ github.ref }}"
+                log_success "defconfig.config 已更新并上传" 0
+            fi
         fi
 
     - name: 释放Ubuntu磁盘空间
