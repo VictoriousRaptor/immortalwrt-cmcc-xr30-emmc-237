@@ -345,6 +345,7 @@ jobs:
       run: |
         source "${{ env.BUILD_SCRIPT }}"
         cd "$SOURCE_DIR"
+        log_info "当前目录：$(pwd)" 0
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
           awk -F'[=]' '{print substr($1, 16)}')
         log_separator "已选插件列表[$(echo "$plugins" | grep -c '^')]" 0
@@ -373,14 +374,15 @@ jobs:
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
-        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "$SOURCE_DIR/.config" | 
           awk -F'[=]' '{print substr($1, 16)}')
         count=0
         echo "$plugins" > /tmp/plugins_list.txt
+        > /tmp/formatted_plugins.txt
         while IFS= read -r plugin; do
           if [ -n "$plugin" ]; then
             count=$((count+1))
-            echo "$count、$plugin"
+            echo "$count、$plugin" >> /tmp/formatted_plugins.txt
           fi
         done < /tmp/plugins_list.txt 
         if [ $count -eq 0 ]; then
