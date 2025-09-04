@@ -91,7 +91,7 @@ env:
   CCACHE_COMPRESSION_LEVEL: 6
   DEVICE_NAME: cmcc_rax3000m-emmc
   KERNEL_VERSION: 6.6
-  LUCI_VERSION: 24.10
+  SYSTEM_VERSION: 24.10
   BUILD_SCRIPT: ./build-openwrt.sh
   TRIGGER_SOURCE: ${{ github.event.inputs.trigger_source || github.event.client_payload.inputs.trigger_source || '手动触发' }}
 
@@ -395,7 +395,7 @@ jobs:
         - 登录密码：无
         - 设备信息：${DEVICE_TARGET}-${DEVICE_SUBTARGET}
         - 设备型号：${DEVICE_NAME}
-        - Luci版本：${LUCI_VERSION}
+        - Luci版本：${SYSTEM_VERSION}
         - 内核版本：${KERNEL_VERSION}
         - 5G高功率25db：$( if [[ "${HIGH_POWER_5G}" == "true" ]]; then echo "已"; else echo "未"; fi )启用
         - 默认主题：${DEFAULT_THEME}
@@ -488,10 +488,10 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         FILE_DATE="_$(date +"%Y%m%d%H%M")"
         echo "FILE_DATE=${FILE_DATE}" >> $GITHUB_ENV
-        EXTRACTED_LUCI_VERSION=$(grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
+        EXTRACTED_SYSTEM_VERSION=$(grep -oP 'CONFIG_VERSION_NUMBER="\K[0-9]+\.[0-9]+\.[0-9]+' \
         ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
-        LUCI_VERSION=${EXTRACTED_LUCI_VERSION:-${LUCI_VERSION}}
-        echo "LUCI_VERSION=${LUCI_VERSION}" >> $GITHUB_ENV
+        SYSTEM_VERSION=${EXTRACTED_SYSTEM_VERSION:-${SYSTEM_VERSION}}
+        echo "SYSTEM_VERSION=${SYSTEM_VERSION}" >> $GITHUB_ENV
         EXTRACTED_KERNEL_VERSION=$(grep -oP 'CONFIG_LINUX_VERSION="\K[0-9]+\.[0-9]+\.[0-9]+' \
         ${{ env.SOURCE_DIR }}/build_dir/target-*/linux-*/linux-*/.config 2>/dev/null | head -n 1)
         KERNEL_VERSION=${EXTRACTED_KERNEL_VERSION:-${KERNEL_VERSION}}
@@ -595,7 +595,7 @@ jobs:
         - 登录密码：无
         - 设备信息：${DEVICE_TARGET}-${DEVICE_SUBTARGET}
         - 设备型号：${DEVICE_NAME}
-        - Luci版本：${LUCI_VERSION}
+        - 系统版本：${SYSTEM_VERSION}
         - 内核版本：${KERNEL_VERSION}
         - 5G高功率25db：$( if [[ "${HIGH_POWER_5G}" == "true" ]]; then echo "已"; else echo "未"; fi )启用
         - 默认主题：${DEFAULT_THEME}
