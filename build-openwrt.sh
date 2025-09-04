@@ -351,6 +351,7 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     log_info "5G高功率25db设置完成"
 fi
 log_info "自定义配置加载完成！"
+make defconfig
 }
 
 # ======================================================

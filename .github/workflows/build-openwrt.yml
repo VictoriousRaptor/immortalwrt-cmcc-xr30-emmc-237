@@ -260,31 +260,39 @@ jobs:
  
     - name: 加载.config配置
       run: |
-          source ${{ env.BUILD_SCRIPT }}
-          WORK_CONFIG_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
-          if [ -f "${SOURCE_DIR}/${CONFIG_FILE}" ]; then
-            SOURCE_CONFIG_MD5=$(md5sum "${SOURCE_DIR}/.config" | awk "{print \$1}")
-            if [ "$SOURCE_CONFIG_MD5" = "$WORK_CONFIG_MD5" ]; then
-                log_info "项目.config文件与固件源码.config一致，无需更新，固件源码.configMD5校验：$SOURCE_CONFIG_MD5" 1
-                exit 0
-            else
-                log_info "项目.config文件MD5校验：$WORK_CONFIG_MD5" 1
-                log_info "项目.config文件与固件源码.config不一致，需要更新" 1
-            fi
+        source ${{ env.BUILD_SCRIPT }}
+        WORK_CONFIG_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
+        if [ -f "${SOURCE_DIR}/.config" ]; then
+          diff "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
+          SOURCE_CONFIG_MD5=$(md5sum "${SOURCE_DIR}/.config" | awk "{print \$1}")
+          if [ "$SOURCE_CONFIG_MD5" = "$WORK_CONFIG_MD5" ]; then
+              log_info "项目.config文件与固件源码.config一致，无需更新，固件源码.configMD5校验：$SOURCE_CONFIG_MD5" 1
+              exit 0
+          else
+              log_info "项目.config文件MD5校验：$WORK_CONFIG_MD5" 1
+              log_info "项目.config文件与固件源码.config不一致，需要更新" 1
           fi
           rm -rf "${SOURCE_DIR}/.config"
-          cp -f "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
-          SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
-          if [ "$SRC_MD5" = "$WORK_CONFIG_MD5" ]; then
-              log_success "加载新.config配置文件成功！" 1
-          else
-              log_error "加载新.config配置文件失败：固件源码.configMD5：$SRC_MD5！" 1
-              log_info "${WORK_DIR}/.config文件信息↓↓↓："
-              log_info "$(ls -al "${WORK_DIR}/.config")"
-              log_info "${SOURCE_DIR}/.config文件信息↓↓↓："
-              log_info "$(ls -al "${SOURCE_DIR}/.config")"
-              exit 1
-          fi
+        else
+          log_info "固件源码.config文件不存在" 1
+        fi
+        cp -f "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
+        SRC_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
+        if [ "$SRC_MD5" = "$WORK_CONFIG_MD5" ]; then
+            log_success "加载新.config配置文件成功！" 1
+        else
+            log_error "加载新.config配置文件失败：固件源码.configMD5：$SRC_MD5！" 1
+            log_info "${WORK_DIR}/${CONFIG_FILE}文件信息↓↓↓："
+            log_info "$(ls -al "${WORK_DIR}/${CONFIG_FILE}")"
+            log_info "${SOURCE_DIR}/.config文件信息↓↓↓："
+            log_info "$(ls -al "${SOURCE_DIR}/.config")"
+            exit 1
+        fi
+        if [[ "${{ env.BUILD_TYPE }}" == "Host" ]]; then
+            make defconfig
+        else
+            docker exec builder bash -c 'make defconfig'
+        fi
 
     - name: 加载自定义feeds
       run: |
