@@ -346,22 +346,24 @@ jobs:
         source "${{ env.BUILD_SCRIPT }}"
         cd "$SOURCE_DIR"
         plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' ".config" | 
-          awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
-        [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
-        echo -n "$plugins" > "/tmp/plugins_list.txt"
-        echo "PLUGINS_BASE64=$(echo "$plugins" | base64 -w 0)" >> $GITHUB_ENV
+          awk -F'[=]' '{print substr($1, 16)}')
+        
+        # 保存纯插件列表到文件和环境变量
+        echo "$plugins" > "/tmp/plugins_list.txt"
         log_separator "已选插件列表" 0
         count=0
-        while IFS= read -r line; do
-          if [ -n "$line" ]; then
+        echo "$plugins" | while IFS= read -r plugin; do
+          if [ -n "$plugin" ]; then
             count=$((count+1))
-            log_highlight "$line" 0
+            log_highlight "$count、$plugin" 0
           fi
-        done < <(printf "%s\n" "$plugins")
+        done
+        [ $count -eq 0 ] && log_highlight "无额外插件（仅基础系统）" 0
         log_success "共检测到 $count 个已选插件" 0
 
     - name: 提取缓存相关变量
       run: |
+        source ${{ env.BUILD_SCRIPT }}
         SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
         echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
         DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
@@ -373,6 +375,20 @@ jobs:
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
+          awk -F'[=]' '{print substr($1, 16)}')
+        count=0
+        formatted_plugins=""
+        echo "$plugins" | while IFS= read -r plugin; do
+          if [ -n "$plugin" ]; then
+            count=$((count+1))
+            formatted_plugins+="$count、$plugin\n"
+          fi
+        done
+        if [ $count -eq 0 ]; then
+          formatted_plugins="无额外插件（仅基础系统）"
+        fi
+        # 生成发布信息
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
@@ -389,7 +405,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(if [ -f "/tmp/plugins_list.txt" ]; then cat "/tmp/plugins_list.txt"; else echo "${PLUGINS_BASE64}" | base64 --decode; fi)
+        $formatted_plugins
         ```
         
         #### 编译信息
@@ -400,7 +416,7 @@ jobs:
         - 工作流编号：#${{ github.run_number }}
         EOF
         cat release.txt
-        echo -e "发布信息生成完成"
+        log_success "发布信息生成完成" 0
 
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
@@ -553,10 +569,22 @@ jobs:
         echo "url=$(cat wetransfer.log | grep https | cut -f3 -d" ")" >> $GITHUB_OUTPUT
 
     - name: 生成发布信息
-      id: tag
-      if: env.UPLOAD_RELEASE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
         source ${{ env.BUILD_SCRIPT }}
+        plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
+          awk -F'[=]' '{print substr($1, 16)}')
+        count=0
+        formatted_plugins=""
+        echo "$plugins" | while IFS= read -r plugin; do
+          if [ -n "$plugin" ]; then
+            count=$((count+1))
+            formatted_plugins+="$count、$plugin\n"
+          fi
+        done
+        if [ $count -eq 0 ]; then
+          formatted_plugins="无额外插件（仅基础系统）"
+        fi
+        # 生成发布信息
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
         
@@ -573,7 +601,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(if [ -f "/tmp/plugins_list.txt" ]; then cat "/tmp/plugins_list.txt"; else echo "${PLUGINS_BASE64}" | base64 --decode; fi)
+        $formatted_plugins
         ```
         
         #### 编译信息

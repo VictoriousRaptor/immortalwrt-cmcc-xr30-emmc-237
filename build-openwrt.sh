@@ -145,7 +145,7 @@ sudo timedatectl set-timezone "$TZ"
 # 设置工作目录权限
 sudo mkdir -p "$WORK_DIR"
 sudo chown -R $USER:$GROUPS "$WORK_DIR"
-log_info "编译环境初始化完成！"
+log_success "编译环境初始化完成！"
 log_info "工作目录：$WORK_DIR"
 }
 
@@ -173,7 +173,7 @@ rm -rf "$SOURCE_DIR"
 for i in {1..3};
 do
     git clone --depth 1 --single-branch -b $REPO_BRANCH $REPO_URL "$SOURCE_DIR" && break
-    log_info "克隆失败，重试第$i次..." && sleep 5
+    log_errir "克隆失败，重试第$i次..." && sleep 5
 done
 
 # 检查克隆是否成功
@@ -200,7 +200,7 @@ if [ $SRC_SIZE_MB -lt $min_src_size_mb ]; then
     return 1
 fi
 
-log_info "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
+log_success "源码准备完成: $(du -sh "$SOURCE_DIR" | cut -f1)"
 }
 
 # ======================================================
@@ -212,7 +212,7 @@ log_info "开始加载自定义feeds..."
 # 检查并替换feeds配置文件
 if [ -e "$WORK_DIR/feeds.conf.default" ]; then
     cp -f "$WORK_DIR/feeds.conf.default" "$SOURCE_DIR/feeds.conf.default" && \
-        log_info "已替换feeds配置文件"
+        log_success "已替换feeds配置文件"
     if [ $? -ne 0 ]; then
         log_error "复制feeds配置文件失败！"
         return 1
@@ -232,7 +232,7 @@ else
     log_error "diy-part1.sh脚本不存在"
     return 1
 fi
-log_info "加载自定义feeds完成！"
+log_success "加载自定义feeds完成！"
 }
 
 # ======================================================
@@ -245,12 +245,12 @@ log_info "开始更新并安装feeds..."
 # 更新feeds，带重试机制
 cd "$SOURCE_DIR"
 for i in {1..3}; do 
-    ./scripts/feeds update -a && break || (log_info "更新feeds失败，重试第$i次" && sleep 10)
+    ./scripts/feeds update -a && break || (log_errir "更新feeds失败，重试第$i次" && sleep 10)
 done
 # 安装feeds
 ./scripts/feeds install -a -j$(nproc)
 
-log_info "feeds安装完成！"
+log_success "feeds安装完成！"
 }
 
 # ======================================================
@@ -262,7 +262,7 @@ load_custom_config() {
 log_info "开始加载自定义配置..."
 # 复制files目录
 if [ -d "$WORK_DIR/files" ]; then
-    cp -r "$WORK_DIR/files" "$SOURCE_DIR/files" && log_info "已复制自定义files目录"
+    cp -r "$WORK_DIR/files" "$SOURCE_DIR/files" && log_success "已复制自定义files目录"
 fi
 # 执行diy-part2.sh并进行错误处理
 if [ -f "$WORK_DIR/$DIY_P2_SH" ]; then
@@ -305,7 +305,7 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     log_info "5G高功率25db设置中..."
     rm -f "./package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p"
     if [ $? -eq 0 ]; then
-       log_info "删除 e2p 成功"
+       log_success "删除 e2p 成功"
     else
        log_error "删除 e2p 失败"
     fi
@@ -313,7 +313,7 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
     if [ -f "$EEPROM_FILE" ]; then
        mkdir -p "./files/lib/firmware"
     ln -sf "./lib/firmware/MT7981_iPAiLNA_EEPROM.bin" "./files/lib/firmware/e2p"
-      if test -L "./files/lib/firmware/e2p"; then log_info "符号链接已创建"; else log_error "符号链接创建失败"; fi
+      if test -L "./files/lib/firmware/e2p"; then log_success "符号链接已创建"; else log_error "符号链接创建失败"; fi
     else
        log_error "$EEPROM_FILE 不存在，无法创建符号链接"
       exit 1
@@ -340,20 +340,20 @@ if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWE
             [ -n "$line" ] && log_info "$line"
         done
         if [ $WRITE_EXIT_CODE -eq 0 ]; then
-            log_info "EEPROM 文件已更新: $EEPROM_FILE"
+            log_success "EEPROM 文件已更新: $EEPROM_FILE"
         else
             log_error "EEPROM 文件更新失败: $EEPROM_FILE"
         fi
     else
-        log_info "EEPROM 文件无需修改: $EEPROM_FILE"
+        log_success "EEPROM 文件无需修改: $EEPROM_FILE"
     fi
     
-    log_info "5G高功率25db设置完成"
+    log_success "5G高功率25db设置完成"
 fi
-log_info "自定义配置加载完成！"
-log_info "执行make defconfig进行配置验证与补全配置"
+log_success "自定义配置加载完成！"
+log_info "执行make defconfig配置的验证与补全"
 make defconfig
-log_info "make defconfig执行完成"
+log_success "make defconfig执行完成"
 }
 
 # ======================================================
@@ -375,7 +375,7 @@ find dl -size -1024c -exec ls -l {} \;
 find dl -size -1024c -exec rm -f {} \;
 
 log_info "已下载软件包大小: $(du -sh dl | cut -f1)"
-log_info "软件包下载完成！"
+log_success "软件包下载完成！"
 }
 
 # ======================================================
@@ -387,12 +387,12 @@ compile_firmware() {
     log_info "开始编译固件（使用$(nproc)线程）..."
     cd "$SOURCE_DIR"
     if make -j$(nproc); then
-        log_info "固件编译完成！"
+        log_success "固件编译完成！"
         return 0
     else
         log_error "多线程编译失败，尝试单线程编译..."
         if make -j1 V=s; then
-            log_info "单线程编译完成！"
+            log_success "单线程编译完成！"
             return 0
         else
             log_error "固件编译失败！"
