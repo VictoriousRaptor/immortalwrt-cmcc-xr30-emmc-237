@@ -349,9 +349,7 @@ jobs:
           awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
         echo -n "$plugins" > "/tmp/plugins_list.txt"
-        echo "PLUGINS<<EOF" >> $GITHUB_ENV
-        echo "$plugins" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
+        echo "PLUGINS_BASE64=$(echo "$plugins" | base64 -w 0)" >> $GITHUB_ENV
         log_separator "已选插件列表" 0
         count=0
         while IFS= read -r line; do
@@ -391,7 +389,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "/tmp/plugins_list.txt" || echo "$PLUGINS")
+        $(if [ -f "/tmp/plugins_list.txt" ]; then cat "/tmp/plugins_list.txt"; else echo "${PLUGINS_BASE64}" | base64 --decode; fi)
         ```
         
         #### 编译信息
@@ -530,7 +528,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
-        name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
         retention-days: 7
 
@@ -575,7 +573,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "/tmp/plugins_list.txt" || echo "$PLUGINS")
+        $(if [ -f "/tmp/plugins_list.txt" ]; then cat "/tmp/plugins_list.txt"; else echo "${PLUGINS_BASE64}" | base64 --decode; fi)
         ```
         
         #### 编译信息
