@@ -354,7 +354,9 @@ jobs:
           awk -F'[=]' '{name = substr($1, 16); print "     " NR "、" name}')
         [ -z "$plugins" ] && plugins="无额外插件（仅基础系统）"
         echo -n "$plugins" > "${{ env.WORK_DIR }}/plugins_list.txt"
-        
+        echo "PLUGINS<<EOF" >> $GITHUB_ENV
+        echo "$plugins" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
         log_separator "已选插件列表" 0
         count=0
         while IFS= read -r line; do
@@ -394,7 +396,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "${{ env.WORK_DIR }}/plugins_list.txt")
+        $(cat "${{ env.WORK_DIR }}/plugins_list.txt" || echo "$PLUGINS")
         ```
         
         #### 编译信息
@@ -578,7 +580,7 @@ jobs:
         
         #### 已选插件列表
         ```
-        $(cat "${{ env.WORK_DIR }}/plugins_list.txt")
+        $(cat "${{ env.WORK_DIR }}/plugins_list.txt" || echo "$PLUGINS")
         ```
         
         #### 编译信息
