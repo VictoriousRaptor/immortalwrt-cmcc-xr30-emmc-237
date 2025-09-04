@@ -375,6 +375,22 @@ jobs:
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
 
+        echo "设备信息哟哟哟：$DEVICE_TARGET"
+        SOURCE_REPO="${{ env.SOURCE_REPO }}"
+        DEVICE_TARGET="${{ env.DEVICE_TARGET }}"
+        DEVICE_SUBTARGET="${{ env.DEVICE_SUBTARGET }}"
+        DEVICE_NAME="${{ env.DEVICE_NAME }}"
+        SYSTEM_VERSION="${{ env.SYSTEM_VERSION }}"
+        KERNEL_VERSION="${{ env.KERNEL_VERSION }}"
+        LAN_IP="${{ env.LAN_IP }}"
+        HIGH_POWER_5G="${{ env.HIGH_POWER_5G }}"
+        DEFAULT_THEME="${{ env.DEFAULT_THEME }}"
+        HOSTNAME="${{ env.HOSTNAME }}"
+        BUILD_TYPE="${{ env.BUILD_TYPE }}"
+        REPO_URL="${{ env.REPO_URL }}"
+        REPO_BRANCH="${{ env.REPO_BRANCH }}"
+        GITHUB_RUN_NUMBER="${{ github.run_number }}"
+        > /tmp/formatted_plugins.txt
         if [ ! -s /tmp/formatted_plugins.txt ]; then
           plugins=$(grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" | 
             awk -F'[=]' '{print substr($1, 16)}')
