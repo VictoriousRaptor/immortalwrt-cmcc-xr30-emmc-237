@@ -358,7 +358,7 @@ jobs:
             log_highlight "$line" 0
           fi
         done < <(printf "%s\n" "$plugins")
-        log_info "✅ 共检测到 $count 个已选插件" 0
+        log_success "共检测到 $count 个已选插件" 0
 
     - name: 提取缓存相关变量
       run: |
@@ -447,7 +447,7 @@ jobs:
         # 如果释放空间不够可在remove_folders添加/usr/local/lib/node_modules
         # 如果释放空间不够可将remove_android改为true
 
-    - name: 查看清理后磁盘空间
+    - name: 检查清理后磁盘空间
       if: (!cancelled())
       run: |
         source ${{ env.BUILD_SCRIPT }}
