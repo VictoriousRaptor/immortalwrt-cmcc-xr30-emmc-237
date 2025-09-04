@@ -53,9 +53,9 @@ if [ -f "$LIBXCRYPT_MAKEFILE" ]; then
     # 向 CONFIGURE_ARGS 中注入 CFLAGS，禁用格式非字面量警告
     sed -i '/CONFIGURE_ARGS +=/a \	CFLAGS="\$(TARGET_CFLAGS) -Wno-format-nonliteral" \\' "$LIBXCRYPT_MAKEFILE"
     if grep -q 'CFLAGS="\$(TARGET_CFLAGS) -Wno-format-nonliteral"' "$LIBXCRYPT_MAKEFILE"; then
-        echo "✅ 成功为 libxcrypt 注入 CFLAGS：-Wno-format-nonliteral"
+        echo "✅ 设置libxcrypt编译参数为忽略警告"
     else
-        echo "❌ libxcrypt Makefile 修改失败" >&2
+        echo "❌ 设置libxcrypt编译参数失败" >&2
         exit 1
     fi
 else
@@ -73,7 +73,7 @@ fi
 
 # 验证配置文件是否存在
 if [ -f ".config" ]; then
-    echo "✅ .config文件存在，配置行数: $(wc -l .config | awk '{print $1}')"
+    echo "✅ .config文件配置行数: $(wc -l .config | awk '{print $1}')"
 else
     echo "ℹ️ 未找到.config文件" >&2
     exit 1

@@ -284,7 +284,7 @@ if [ ! -f ".config" ]; then
     log_error "未找到配置文件 .config，终止编译！"
     return 1
 fi
-log_info "配置文件总行数: $(wc -l ".config" | awk '{print $1}')"
+log_info ".config配置行数: $(wc -l ".config" | awk '{print $1}')"
 # 设置用户输入的参数
 if [ -n "$LAN_IP" ]; then
     log_info "设置LAN IP地址为: $LAN_IP"
