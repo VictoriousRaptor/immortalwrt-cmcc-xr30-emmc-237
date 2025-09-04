@@ -361,6 +361,7 @@ jobs:
         fi
 
     - name: 提取缓存相关变量
+      shell: bash
       run: |
         source ${{ env.BUILD_SCRIPT }}
         SOURCE_REPO="$(echo $REPO_URL | awk -F '/' '{print $(NF)}')"
@@ -389,7 +390,7 @@ jobs:
           echo "无额外插件（仅基础系统）" > /tmp/formatted_plugins.txt
         fi
         # 生成发布信息
-        cat > release.txt <<EOF
+        cat > release.txt <<'EOF'
         ### ${DEVICE_NAME}-immortalwrt 固件
         
         - 后台地址：${LAN_IP}
@@ -417,6 +418,7 @@ jobs:
         EOF
         cat release.txt
         log_success "发布信息生成完成" 0
+        exit 1
 
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
