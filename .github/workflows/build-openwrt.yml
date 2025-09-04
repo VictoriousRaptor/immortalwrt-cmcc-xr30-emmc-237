@@ -488,14 +488,6 @@ jobs:
         log_highlight "系统空间      类型   总数  已用  可用 使用率" 0
         log_highlight "$(df -hT "$PWD")" 0
 
-    - name: 上传bin目录
-      uses: actions/upload-artifact@v4
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      with:
-        name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
-        path: ${{ env.SOURCE_DIR }}/bin
-        retention-days: 30
-
     - name: 整理固件文件
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
@@ -527,7 +519,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
-        name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
+        name: ${{ env.SOURCE_REPO }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
         retention-days: 7
 
@@ -599,8 +591,9 @@ jobs:
         - 触发来源：${TRIGGER_SOURCE}
         EOF
         cat release.txt
-        log_success "发布信息生成完成" 0
         echo "status=success" >> $GITHUB_OUTPUT
+        log_success "发布信息生成完成" 0
+        
 
     - name: 上传固件到Release
       uses: softprops/action-gh-release@v2
