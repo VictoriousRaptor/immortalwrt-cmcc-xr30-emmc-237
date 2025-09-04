@@ -320,7 +320,7 @@ jobs:
         REPO_TOKEN: ${{ secrets.REPO_TOKEN }}
         TIMEOUT_MIN: 360
           
-    - name: 同步.config
+    - name: 同步.config配置
       if: (env.SSH == 'true' || env.SSH == true) || contains(github.event.action, 'ssh')
       run: |
         source ${{ env.BUILD_SCRIPT }}
@@ -328,7 +328,7 @@ jobs:
         git config --global user.email "actions@github.com"
         cd "$WORK_DIR"
         CONFIG_SOURCE="$SOURCE_DIR/.config"
-        cp -f "$CONFIG_SOURCE" "$CONFIG_FILE" && echo_color g "已复制$CONFIG_SOURCE到项目根目录"
+        cp -f "$CONFIG_SOURCE" "$CONFIG_FILE" && log_success "已复制$CONFIG_SOURCE到项目根目录" 0
         if git diff --quiet "$CONFIG_FILE"; then
             log_info ".config 未修改，无需上传" 0
         else
@@ -412,7 +412,7 @@ jobs:
         git config --global user.email "actions@github.com"
         cd "$WORK_DIR"
         CONFIG_SOURCE="$SOURCE_DIR/.config"
-        cp -f "$CONFIG_SOURCE" "defconfig.config" && log_info "已复制$CONFIG_SOURCE到项目根目录的defconfig.config" 0
+        cp -f "$CONFIG_SOURCE" "defconfig.config" && log_success "已复制$CONFIG_SOURCE到项目根目录的defconfig.config" 0
         if [ ! -f "defconfig.config" ]; then
             log_err "defconfig.config 不存在，无法上传！" 1
         elif ! git ls-files --error-unmatch "defconfig.config" >/dev/null 2>&1; then
@@ -597,6 +597,7 @@ jobs:
         - 源码分支：${REPO_BRANCH}
         - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
         - 工作流编号：#${GITHUB_RUN_NUMBER}
+        - 触发来源：${TRIGGER_SOURCE}
         EOF
         cat release.txt
         log_success "发布信息生成完成" 0
