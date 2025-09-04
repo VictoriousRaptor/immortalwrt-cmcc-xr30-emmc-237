@@ -394,16 +394,17 @@ jobs:
         echo "#### 已选插件列表" >> release.txt
         echo "```" >> release.txt
         count=0
-        while IFS= read -r plugin; do
-          if [ -n "$plugin" ]; then
-            count=$((count+1))
-            echo "$count、$plugin" >> release.txt
-          fi
-        done <<(echo "$plugins")
+        if [ -n "$plugins" ]; then
+          echo "$plugins" | while IFS= read -r plugin; do
+            if [ -n "$plugin" ]; then
+              count=$((count+1))
+              echo "$count、$plugin" >> release.txt
+            fi
+          done
+        fi
         if [ $count -eq 0 ]; then
           echo "无额外插件（仅基础系统）" >> release.txt
         fi
-        cat /tmp/formatted_plugins.txt >> release.txt
         echo "```" >> release.txt
         echo "" >> release.txt
         echo "#### 编译信息" >> release.txt
