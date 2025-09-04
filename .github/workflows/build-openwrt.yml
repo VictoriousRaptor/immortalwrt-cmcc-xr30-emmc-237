@@ -274,6 +274,7 @@ jobs:
     - name: 加载.config配置
       run: |
         source ${{ env.BUILD_SCRIPT }}
+        log_warn "由于feed install即上个步骤的安装feeds会在过程中处理.config的无效配置，为防止改变将加载.config配置步骤移到它下一步！" 0
         WORK_CONFIG_MD5=$(md5sum "${WORK_DIR}/${CONFIG_FILE}" | awk "{print \$1}")
         if [ -f "${SOURCE_DIR}/.config" ]; then
           diff "${WORK_DIR}/${CONFIG_FILE}" "${SOURCE_DIR}/.config"
@@ -403,9 +404,10 @@ jobs:
           docker exec builder bash -c 'source ${{ env.BUILD_SCRIPT }} && download_packages'
         fi
  
-    - name: 上传defconfig.config
+    - name: 上传配置文件
       run: |
         source ${{ env.BUILD_SCRIPT }}
+        log_info "下载软件包中执行的make defconfig会检查并处理.config配置文件，尽量减少编译出错的问题，比如软件不兼容、缺少依赖等等被将相关配置移除！" 0
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
         cd "$WORK_DIR"
