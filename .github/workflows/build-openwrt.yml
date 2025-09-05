@@ -620,7 +620,6 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         log_success "发布信息生成完成" 0
         
-
     - name: 上传固件到Release
       uses: softprops/action-gh-release@v2
       if: steps.tag.outputs.status == 'success' && !cancelled()
@@ -633,14 +632,12 @@ jobs:
       if: env.CACHEWRTBUILD_SWITCH == 'true'
       run: |
         source ${{ env.BUILD_SCRIPT }}
-        # 获取缓存列表并删除
         gh cache list --key ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}- --json key --jq '.[] | .key' | while read -r key; do
           gh cache delete "$key"
         done
-        # 输出缓存状态
         log_separator "缓存状态" 0
-        log_highlight "ccache: $(du -sh $OPENWRT_PATH/.ccache | cut -f 1)" 0
-        log_highlight "staging: $(du -sh $OPENWRT_PATH/staging_dir | cut -f 1)" 0
+        log_highlight "ccache: $(du -sh $SOURCE_DIR/.ccache | cut -f 1)" 0
+        log_highlight "staging: $(du -sh $SOURCE_DIR/staging_dir | cut -f 1)" 0
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

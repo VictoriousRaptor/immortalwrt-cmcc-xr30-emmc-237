@@ -26,15 +26,18 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      # 步骤1：恢复上次的提交哈希缓存
-      - name: 恢复上次提交哈希缓存
+      - name: 设置缓存日期环境变量
+        run: |
+          echo "CACHE_DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+
+      - name: 提取缓存哈希
         id: restoreCache
         uses: actions/cache@main
         with:
           path: .commitHash  # 缓存文件路径
-          key: commitHash  # 使用固定的缓存键
+          key: commitHash ${{ env.CACHE_DATE }}
+          restore-keys: commitHash
 
-      # 步骤2：获取最新提交信息和更新日志
       - name: 获取最新提交信息
         id: getCommitInfo
         run: |
@@ -90,7 +93,6 @@ jobs:
           echo "${COMMIT_LOGS_SINGLE}" >> ${GITHUB_OUTPUT}
           echo "EOF" >> ${GITHUB_OUTPUT}
 
-      # 步骤3：对比提交哈希（判断是否有更新）
       - name: 对比提交哈希（检测更新）
         id: compareHash
         run: |
@@ -113,7 +115,6 @@ jobs:
             echo "hasUpdate=true" >> ${GITHUB_OUTPUT}
           fi
 
-      # 步骤6：有更新时触发镜像构建工作流
       - name: 触发构建镜像
         id: compile
         if: steps.compareHash.outputs.hasUpdate == 'true'
@@ -167,17 +168,21 @@ jobs:
             echo "错误信息: $RESPONSE"
             # 不中断流程，仅记录错误
           fi
-      # 步骤7：清理旧工作流记录（保持页面整洁）
+
       - name: 清理旧工作流记录
         uses: GitRML/delete-workflow-runs@main
         with:
           retain_days: 3  # 仅保留3天内的记录
           keep_minimum_runs: 3  # 最少保留3条记录（避免清空）
           
-      # 步骤8：手动保存最新的提交哈希缓存
-      - name: 保存最新提交哈希缓存
-        uses: actions/cache/save@main
-        if: steps.compile.outputs.status == 'success'
-        with:
-          path: .commitHash  # 缓存文件路径
-          key: commitHash  # 使用相同的缓存键
+      - name: 清理旧哈希缓存
+        if: env.CACHEWRTBUILD_SWITCH == 'true'
+        run: |
+          source ${{ env.BUILD_SCRIPT }}
+          gh cache list --key commitHash --json key --jq '.[] | .key' | while read -r key; do
+            gh cache delete "$key"
+          done
+          echo "缓存状态:"
+          echo "ccache: $(du -sh .commitHash | cut -f 1)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
