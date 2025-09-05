@@ -164,15 +164,22 @@ jobs:
             # 不中断流程，仅记录错误
           fi
           
-      - name: 清理旧哈希缓存
+      - name: 清理旧哈希缓存并保存新缓存
         if: steps.compile.outputs.status == 'success'
         run: |
-          gh cache list --key commitHash --json key --jq '.[] | .key' | while read -r key; do
-            echo "删除缓存: $key"
-            gh cache delete "$key"
-          done
-          echo "缓存状态:$(cat .commitHash)"
-          echo "ccache: $(du -sh .commitHash | cut -f 1)"
+          echo "删除所有旧的 commitHash 缓存..."
+          gh cache delete --key commitHash 2>/dev/null || true
+          echo "剩余缓存列表："
+          gh cache list --key commitHash --json key,size || true
+          if [ -f .commitHash ]; then
+            echo "新哈希值：$(cat .commitHash)"
+            echo "保存新缓存..."
+            gh cache upload --key commitHash .commitHash
+            echo "新缓存已保存，大小：$(du -sh .commitHash | cut -f 1)"
+          else
+            echo "❌ 新哈希文件不存在，无法保存缓存"
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
