@@ -522,13 +522,13 @@ jobs:
         source ${{ env.BUILD_SCRIPT }}
         log_highlight "厂商: $DEVICE_TARGET" 0
         log_highlight "平台: $DEVICE_SUBTARGET" 0
-        log_highlight "当前工作目录: $PWD" 0
-        log_highlight "源码固件目录: ${{ env.SOURCE_DIR }}" 0
+        log_highlight "项目目录: $PWD" 0
+        log_highlight "源码目录: ${{ env.SOURCE_DIR }}" 0
         shopt -s nullglob
         FIRMWARE_DIR_CANDIDATES="${{ env.SOURCE_DIR }}/bin/targets/*/*"
         FIRMWARE_DIRS=($FIRMWARE_DIR_CANDIDATES)
         if [ ${#FIRMWARE_DIRS[@]} -eq 0 ]; then
-          log_error "通配符未匹配到任何固件目录！检查路径：${{ env.SOURCE_DIR }}/bin/targets/" 0
+          log_error "未找到固件目录！检查路径：${{ env.SOURCE_DIR }}/bin/targets/" 0
           exit 1
         fi
         cd "${FIRMWARE_DIRS[0]}"
@@ -677,3 +677,12 @@ jobs:
         retain_days: 15
         keep_minimum_runs: 7
         repository: ${{ github.repository }}
+
+    - name: 清理旧Release
+      uses: dev-drprasad/delete-older-releases@v0.3.4
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      with:
+        keep_latest: 30
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
