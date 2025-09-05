@@ -515,7 +515,7 @@ jobs:
     - name: 整理固件文件
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
-      shell: bash  # 关键：用Bash执行，支持嵌套通配符（*/*）展开
+      shell: bash
       run: |
         source ${{ env.BUILD_SCRIPT }}
         log_highlight "厂商: $DEVICE_TARGET" 0
@@ -629,7 +629,7 @@ jobs:
         files: ${{ env.FIRMWARE }}/*
 
     - name: 清理旧缓存
-      if: env.CACHEWRTBUILD_SWITCH == 'true'
+      if: env.CACHEWRTBUILD_SWITCH == 'true' && steps.compile.outputs.status == 'success'
       run: |
         source ${{ env.BUILD_SCRIPT }}
         gh cache list --key ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}- --json key --jq '.[] | .key' | while read -r key; do
