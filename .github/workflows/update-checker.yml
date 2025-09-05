@@ -127,11 +127,13 @@ jobs:
           {
             "event_type": "固件源码更新触发构建镜像",
             "client_payload": {
-              "repo_url": "${{ env.REPO_URL }}",
-              "repo_branch": "${{ env.REPO_BRANCH }}",
-              "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
-              "commit_logs": ${ESCAPED_COMMIT_LOGS},
-              "trigger_source": "检测固件源码更新>更新固件源码触发构建镜像"
+              "inputs": {
+                "repo_url": "${{ env.REPO_URL }}",
+                "repo_branch": "${{ env.REPO_BRANCH }}",
+                "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
+                "commit_logs": ${ESCAPED_COMMIT_LOGS},
+                "trigger_source": "检测固件源码更新>更新固件源码触发构建镜像"
+              }
             }
           }
           EOF
@@ -148,13 +150,19 @@ jobs:
           if [ $? -eq 0 ]; then
             echo "✅ 构建容器工作流已成功触发"
             echo "触发参数:"
-            echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_url')"
-            echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.repo_branch')"
-            echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_hash')"
-            echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.commit_logs')"
+            echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_url')"
+            echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"
+            echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
+            echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
             # 将新哈希写入文件，用于下次缓存对比
             echo ${{ steps.getCommitInfo.outputs.commitHash }} > .commitHash
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
+            if [ $? -eq 0 ]; then
+              echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
+            else
+              echo "[$(date +'%Y-%m-%d %H:%M:%S')] 保存新提交哈希${{ steps.getCommitInfo.outputs.commitHash }}失败！"
+            fi
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 哈希值文件权限: $(ls -la .commitHash)"
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 哈希值文件内容: $(cat .commitHash)"
           else
             echo "❌ 构建容器工作流触发失败！"
             echo "错误信息: $RESPONSE"
