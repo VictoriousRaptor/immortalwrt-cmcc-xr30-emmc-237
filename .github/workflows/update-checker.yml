@@ -12,7 +12,6 @@
 name: 固件源码更新检测器
 
 env:
-  # 目标监控的源码仓库信息
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6  # 源码仓库URL
   REPO_BRANCH: openwrt-24.10-6.6  # 监控分支
 
