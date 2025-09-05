@@ -167,19 +167,15 @@ jobs:
           log_info "缓存编译: ${CACHEWRTBUILD_SWITCH}" 0
           log_info "触发来源: ${TRIGGER_SOURCE}" 0
           log_info "触发更新的提交哈希: ${COMMIT_HASH}" 0
-          log_info "触发更新的提交日志: ${COMMIT_LOGS}" 0
+          COMMIT_LOGS_RESTORED=$(echo "$COMMIT_LOGS" | tr '|||' '\n')
+          log_info "触发更新的提交日志:"
+          echo -e "${COMMIT_LOGS_RESTORED}" | while IFS= read -r line; do
+            log_highlight "$line" 0
+          done
         else
-          log_highlight "手动触发，使用默认参数或指定参数" 1
-        fi
-        
-        # 输出当前使用的参数
-        log_highlight "使用的源码仓库: ${REPO_URL}" 1
-        log_highlight "使用的源码分支: ${REPO_BRANCH}" 1
-        if [ -n "${TRIGGER_SOURCE}" ]; then
-          log_highlight "触发来源: ${TRIGGER_SOURCE}" 1
-        fi
-        if [ -n "${COMMIT_LOGS}" ]; then
-          log_highlight "触发更新的提交日志: ${COMMIT_LOGS}" 1
+          log_highlight "使用的源码仓库: ${REPO_URL}" 1
+          log_highlight "使用的源码分支: ${REPO_BRANCH}" 1
+          log_highlight "${TRIGGER_SOURCE}，使用默认参数或指定参数" 1
         fi
 
     - name: Host环境初始化
@@ -383,6 +379,11 @@ jobs:
         echo "CACHE_DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
+        if [ -f "${SOURCE_DIR}/feeds.conf.default" ]; then
+          echo "FEEDS_HASH=$(sha256sum ${SOURCE_DIR}/feeds.conf.default | cut -d ' ' -f 1)" >> $GITHUB_ENV
+        else
+          echo "FEEDS_HASH=default" >> $GITHUB_ENV
+        fi
         
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
@@ -397,7 +398,7 @@ jobs:
     - name: 缓存已下载的软件包
       uses: actions/cache@main
       with:
-        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-dl-${{ hashFiles('${{ env.SOURCE_DIR }}/feeds.conf.default') }}
+        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-dl-${{ env.FEEDS_HASH }}
         restore-keys: |
           ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-dl-
         path: ${{ env.SOURCE_DIR }}/dl
@@ -604,14 +605,16 @@ jobs:
         fi
         cat >> release.txt <<EOF
         \`\`\`
-
+        COMMIT_LOGS_RESTORED=$(echo "$COMMIT_LOGS" | tr '|' '\n' | sed 's/^/  - /')
         #### 编译信息
+        - 触发来源：${TRIGGER_SOURCE}
+        - 工作编号：#${GITHUB_RUN_NUMBER}
         - 编译方式：${BUILD_TYPE}
+        - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
         - 源码URL：${REPO_URL}
         - 源码分支：${REPO_BRANCH}
-        - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
-        - 工作流编号：#${GITHUB_RUN_NUMBER}
-        - 触发来源：${TRIGGER_SOURCE}
+        - 源码更新日志：
+        ${COMMIT_LOGS_RESTORED}
         EOF
         cat release.txt
         echo "status=success" >> $GITHUB_OUTPUT

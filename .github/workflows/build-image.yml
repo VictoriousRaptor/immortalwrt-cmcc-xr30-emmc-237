@@ -53,7 +53,8 @@ jobs:
             echo "触发更新的提交哈希: $COMMIT_HASH"
           fi
           if [ -n "$COMMIT_LOGS" ]; then
-            echo "触发更新的提交日志: $COMMIT_LOGS"
+            COMMIT_LOGS_RESTORED=$(echo "$COMMIT_LOGS" | tr '|||' '\n')
+            echo "触发更新的提交日志: $COMMIT_LOGS_RESTORED"
           fi
 
       - name: 检查磁盘空间并设置清理标记

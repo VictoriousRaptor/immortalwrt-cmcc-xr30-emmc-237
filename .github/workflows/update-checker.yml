@@ -115,6 +115,7 @@ jobs:
 
       # 步骤6：有更新时触发镜像构建工作流
       - name: 触发构建镜像
+        id: compile
         if: steps.compareHash.outputs.hasUpdate == 'true'
         run: |
           echo "=== 安装jq工具用于解析JSON ==="
@@ -155,15 +156,12 @@ jobs:
             echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
             echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
-            # 将新哈希写入文件，用于下次缓存对比
             echo ${{ steps.getCommitInfo.outputs.commitHash }} > .commitHash
             if [ $? -eq 0 ]; then
-              echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已保存新提交哈希：${{ steps.getCommitInfo.outputs.commitHash }}"
+                echo "status=success" >> $GITHUB_OUTPUT
             else
-              echo "[$(date +'%Y-%m-%d %H:%M:%S')] 保存新提交哈希${{ steps.getCommitInfo.outputs.commitHash }}失败！"
+              echo "❌ 保存新提交哈希${{ steps.getCommitInfo.outputs.commitHash }}失败！"
             fi
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 哈希值文件权限: $(ls -la .commitHash)"
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 哈希值文件内容: $(cat .commitHash)"
           else
             echo "❌ 构建容器工作流触发失败！"
             echo "错误信息: $RESPONSE"
@@ -175,3 +173,11 @@ jobs:
         with:
           retain_days: 3  # 仅保留3天内的记录
           keep_minimum_runs: 3  # 最少保留3条记录（避免清空）
+          
+      # 步骤8：手动保存最新的提交哈希缓存
+      - name: 保存最新提交哈希缓存
+        uses: actions/cache/save@main
+        if: steps.compile.outputs.status == 'success'
+        with:
+          path: .commitHash  # 缓存文件路径
+          key: commitHash  # 使用相同的缓存键
