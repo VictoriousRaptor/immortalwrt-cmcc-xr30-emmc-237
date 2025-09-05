@@ -29,7 +29,7 @@ jobs:
       # 步骤1：恢复上次的提交哈希缓存
       - name: 恢复上次提交哈希缓存
         id: restoreCache
-        uses: actions/cache@v3
+        uses: actions/cache@main
         with:
           path: .commitHash  # 缓存文件路径
           key: commitHash  # 使用固定的缓存键
@@ -121,18 +121,18 @@ jobs:
           sudo apt-get install -y jq
           echo "✅ jq工具安装完成"
           echo "当前jq版本：$(jq --version)"
-          echo "=== 开始触发构建容器工作流 ==="
+          echo "=== 开始触发构建镜像工作流 ==="
           ESCAPED_COMMIT_LOGS=$(echo "${{ steps.getCommitInfo.outputs.commitLogs }}" | jq -Rsa .)
           BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
-            "event_type": "固件源码更新触发构建镜像",
+            "event_type": "自动构建集成固件依赖镜像",
             "client_payload": {
               "inputs": {
                 "repo_url": "${{ env.REPO_URL }}",
                 "repo_branch": "${{ env.REPO_BRANCH }}",
                 "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
                 "commit_logs": ${ESCAPED_COMMIT_LOGS},
-                "trigger_source": "检测固件源码更新>更新固件源码触发构建镜像"
+                "trigger_source": "检测固件源码更新"
               }
             }
           }
@@ -148,7 +148,7 @@ jobs:
           
           # 检查触发结果
           if [ $? -eq 0 ]; then
-            echo "✅ 构建容器工作流已成功触发"
+            echo "✅ 构建镜像工作流已成功触发"
             echo "触发参数:"
             echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_url')"
             echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"

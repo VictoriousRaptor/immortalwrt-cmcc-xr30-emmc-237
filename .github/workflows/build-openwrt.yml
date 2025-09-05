@@ -10,7 +10,7 @@ name: 编译固件（RAX3000M-EMMC）
 
 on:
   repository_dispatch:  
-    types: [构建镜像触发自动编译固件]
+    types: [自动编译固件]
   workflow_dispatch:
     inputs:
       build_type:
@@ -143,7 +143,7 @@ jobs:
           echo "CACHEWRTBUILD_SWITCH=${{ github.event.client_payload.inputs.cachewrtbuild_switch }}" >> $GITHUB_ENV
           echo "COMMIT_LOGS=${{ github.event.client_payload.inputs.commit_logs }}" >> $GITHUB_ENV
           echo "TRIGGER_SOURCE=${{ github.event.client_payload.inputs.trigger_source }}" >> $GITHUB_ENV
-          log_highlight "从源码更新检测工作流触发，使用传递的参数"
+          log_highlight "从${TRIGGER_SOURCE}工作流触发，使用传递的参数"
           log_info "编译类型: ${BUILD_TYPE}" 0
           log_info "源码仓库: ${REPO_URL}" 0
           log_info "源码分支: ${REPO_BRANCH}" 0

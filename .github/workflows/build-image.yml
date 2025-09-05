@@ -1,9 +1,9 @@
-name: 构建集成固件Docker镜像
+name: 构建集成固件依赖镜像
 
 on:
   workflow_dispatch:  # 手动触发
   repository_dispatch:  
-    types: [固件源码更新触发构建镜像]
+    types: [自动构建集成固件依赖镜像]
 
 env:
   # 基础环境变量
@@ -32,12 +32,12 @@ jobs:
           # 根据触发来源设置环境变量
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             # 从repository-dispatch事件获取参数
-            echo "REPO_URL=${{ github.event.client_payload.repo_url }}" >> $GITHUB_ENV
-            echo "REPO_BRANCH=${{ github.event.client_payload.repo_branch }}" >> $GITHUB_ENV
-            echo "COMMIT_HASH=${{ github.event.client_payload.commit_hash }}" >> $GITHUB_ENV
-            echo "COMMIT_LOGS=${{ github.event.client_payload.commit_logs }}" >> $GITHUB_ENV
-            echo "TRIGGER_SOURCE=${{ github.event.client_payload.trigger_source }}" >> $GITHUB_ENV
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 从源码更新检测工作流触发，使用传递的参数"
+            echo "REPO_URL=${{ github.event.client_payload.inputs.repo_url }}" >> $GITHUB_ENV
+            echo "REPO_BRANCH=${{ github.event.client_payload.inputs.repo_branch }}" >> $GITHUB_ENV
+            echo "COMMIT_HASH=${{ github.event.client_payload.inputs.commit_hash }}" >> $GITHUB_ENV
+            echo "COMMIT_LOGS=${{ github.event.client_payload.inputs.commit_logs }}" >> $GITHUB_ENV
+            echo "TRIGGER_SOURCE=${{ github.event.client_payload.inputs.trigger_source }}" >> $GITHUB_ENV
+            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 从${TRIGGER_SOURCE}工作流触发，使用传递的参数"
           else
             echo "[$(date +'%Y-%m-%d %H:%M:%S')] 手动触发，使用默认参数或指定参数"
           fi
@@ -120,8 +120,6 @@ jobs:
           build-args: |
             BASE_IMAGE_REGISTRY=${{ env.BASE_IMAGE_REGISTRY || 'docker.io/library/' }}
             BASE_IMAGE_TAG=${{ env.BASE_IMAGE_TAG }}
-            USER_ID=$(id -u)
-            GROUP_ID=$(id -g)
             FORCE_UNSAFE_CONFIGURE=1
             # 使用从环境变量获取的仓库信息
             BUILD_TRIGGER=$(git ls-remote ${{ env.REPO_URL }} ${{ env.REPO_BRANCH }} | awk '{print $1}')
@@ -201,10 +199,10 @@ jobs:
           echo "当前jq版本：$(jq --version)"
           echo "=== 开始触发编译固件工作流 ==="
           ESCAPED_COMMIT_LOGS=$(echo "${COMMIT_LOGS}" | jq -Rsa .)
-          ESCAPED_TRIGGER_SOURCE=$(echo "${TRIGGER_SOURCE}>构建镜像触发编译固件" | jq -Rsa .)
+          ESCAPED_TRIGGER_SOURCE=$(echo "${TRIGGER_SOURCE}>自动构建集成固件依赖镜像" | jq -Rsa .)
           BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
-            "event_type": "构建镜像触发自动编译固件",
+            "event_type": "自动编译固件",
             "client_payload": {
               "inputs": {
                 "build_type": "${BUILD_TYPE}",
