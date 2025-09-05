@@ -58,14 +58,14 @@ jobs:
             COMMIT_LOGS=""
             
             while [ $try_count -lt $max_tries ]; do
-              if git log --pretty=format:"%h: %s%nAuthor: %an%nDate: %ad%n" --date=format:"%Y-%m-%d %H:%M:%S" ${LAST_HASH}..${COMMIT_HASH} > /tmp/commit_logs.txt 2>/dev/null; then
+              if git log --pretty=format:"%h: %s [%ad]" --date=format:"%Y-%m-%d %H:%M:%S" ${LAST_HASH}..${COMMIT_HASH} > /tmp/commit_logs.txt 2>/dev/null; then
                 COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
                 break
               else
                 try_count=$((try_count+1))
                 echo "[$(date +'%Y-%m-%d %H:%M:%S')] 尝试 $try_count: 无法直接获取两次哈希之间的日志，可能是提交历史超过了获取深度。"
                 
-                git log -10 --pretty=format:"%h: %s%nAuthor: %an%nDate: %ad%n" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH} > /tmp/commit_logs.txt
+                git log -10 --pretty=format:"%h: %s [%ad]" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH} > /tmp/commit_logs.txt
                 COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
                 
                 if [ $try_count -eq $max_tries ]; then
