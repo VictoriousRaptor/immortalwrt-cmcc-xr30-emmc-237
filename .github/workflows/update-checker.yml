@@ -25,16 +25,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: 设置缓存日期环境变量
-        run: |
-          echo "CACHE_DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
-
       - name: 提取缓存哈希
         id: restoreCache
         uses: actions/cache@main
         with:
           path: .commitHash  # 缓存文件路径
-          key: commitHash ${{ env.CACHE_DATE }}
+          key: commitHash
           restore-keys: commitHash
 
       - name: 获取最新提交信息
@@ -172,6 +168,7 @@ jobs:
         if: steps.compile.outputs.status == 'success'
         run: |
           gh cache list --key commitHash --json key --jq '.[] | .key' | while read -r key; do
+            echo "删除缓存: $key"
             gh cache delete "$key"
           done
           echo "缓存状态:"
