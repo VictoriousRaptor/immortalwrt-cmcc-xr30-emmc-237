@@ -78,7 +78,7 @@ jobs:
             done
           else
             echo "[$(date +'%Y-%m-%d %H:%M:%S')] 首次运行，无历史哈希记录，获取最新的10条提交日志。"
-            COMMIT_LOGS=$(git log -10 --pretty=format:"%h: %s%nAuthor: %an%nDate: %ad%n" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH})
+            COMMIT_LOGS=$(git log -10 --pretty=format:"%h: %s [%ad]" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH})
           fi
           
           echo "[$(date +'%Y-%m-%d %H:%M:%S')] 成功获取更新日志："
