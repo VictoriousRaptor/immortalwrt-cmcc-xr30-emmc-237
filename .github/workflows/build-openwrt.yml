@@ -130,23 +130,23 @@ jobs:
         # 根据触发来源设置环境变量
         source ${{ env.BUILD_SCRIPT }}
         if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-          BUILD_TYPE=${{ github.event.client_payload.inputs.build_type }}
-          REPO_URL=${{ github.event.client_payload.inputs.repo_url }}
-          REPO_BRANCH=${{ github.event.client_payload.inputs.repo_branch }}
-          COMMIT_HASH=${{ github.event.client_payload.inputs.commit_hash }}
-          LAN_IP=${{ github.event.client_payload.inputs.lan_ip }}
-          DEFAULT_THEME=${{ github.event.client_payload.inputs.default_theme }}
-          HOSTNAME=${{ github.event.client_payload.inputs.hostname }}
-          HIGH_POWER_5G=${{ github.event.client_payload.inputs.high_power_5g }}
-          SSH=${{ github.event.client_payload.inputs.ssh }}
-          CACHEWRTBUILD_SWITCH=${{ github.event.client_payload.inputs.cachewrtbuild_switch }}
-          COMMIT_LOGS=${{ github.event.client_payload.inputs.commit_logs }}
-          TRIGGER_SOURCE=${{ github.event.client_payload.inputs.trigger_source }}
+          # 使用heredoc方式安全地设置可能包含特殊字符的变量
+          BUILD_TYPE="${{ github.event.client_payload.inputs.build_type }}"
+          REPO_URL="${{ github.event.client_payload.inputs.repo_url }}"
+          REPO_BRANCH="${{ github.event.client_payload.inputs.repo_branch }}"
+          COMMIT_HASH="${{ github.event.client_payload.inputs.commit_hash }}"
+          LAN_IP="${{ github.event.client_payload.inputs.lan_ip }}"
+          DEFAULT_THEME="${{ github.event.client_payload.inputs.default_theme }}"
+          HOSTNAME="${{ github.event.client_payload.inputs.hostname }}"
+          HIGH_POWER_5G="${{ github.event.client_payload.inputs.high_power_5g }}"
+          SSH="${{ github.event.client_payload.inputs.ssh }}"
+          CACHEWRTBUILD_SWITCH="${{ github.event.client_payload.inputs.cachewrtbuild_switch }}"
+          COMMIT_LOGS="${{ github.event.client_payload.inputs.commit_logs }}"
+          TRIGGER_SOURCE="${{ github.event.client_payload.inputs.trigger_source }}"
           echo "BUILD_TYPE=${BUILD_TYPE}" >> $GITHUB_ENV 
           echo "REPO_URL=${REPO_URL}" >> $GITHUB_ENV
           echo "REPO_BRANCH=${REPO_BRANCH}" >> $GITHUB_ENV
           echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_ENV
-          echo "COMMIT_LOGS=${COMMIT_LOGS}" >> $GITHUB_ENV
           echo "LAN_IP=${LAN_IP}" >> $GITHUB_ENV
           echo "DEFAULT_THEME=${DEFAULT_THEME}" >> $GITHUB_ENV
           echo "HOSTNAME=${HOSTNAME}" >> $GITHUB_ENV
