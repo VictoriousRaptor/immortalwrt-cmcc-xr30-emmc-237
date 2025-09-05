@@ -44,7 +44,7 @@ jobs:
       - name: 获取详细更新日志
         id: getCommitInfo
         run: |
-          if: steps.cacheHash.outputs.cache-hit != 'true'
+          if [ steps.cacheHash.outputs.cache-hit == 'true' ]; then
               echo "开始执行源码更新检测..."
               echo "目标仓库：${REPO_URL}"
               echo "分支：${REPO_BRANCH}"
