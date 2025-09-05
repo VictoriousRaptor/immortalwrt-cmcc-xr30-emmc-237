@@ -577,6 +577,9 @@ jobs:
           awk -F'[=]' '{print substr($1, 16)}' | 
           sed '/^$/d' > "/tmp/plugins.tmp"
         COMMIT_LOGS_RESTORED=$(echo "$COMMIT_LOGS" | tr '|' '\n' | sed 's/^/  - /')
+        if [[ -z "$COMMIT_LOGS_RESTORED" ]]; then
+          COMMIT_LOGS_RESTORED="  - 无"
+        fi
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
 
