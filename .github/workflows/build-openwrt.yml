@@ -375,7 +375,6 @@ jobs:
         DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
         echo "HASH=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
-        echo "CACHE_DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "DEVICE_NAME=$(grep '^CONFIG_TARGET_PROFILE="DEVICE_' .config | sed -E 's/^CONFIG_TARGET_PROFILE="DEVICE_(.*)"/\1/')" >> $GITHUB_ENV
         echo "KERNEL_VERSION=$(grep "^CONFIG_LINUX_[0-9_]\+=y" .config | sed -r 's/CONFIG_LINUX_([0-9]+)_([0-9]+)=y/\1.\2/')" >> $GITHUB_ENV
         if [ -f "${SOURCE_DIR}/feeds.conf.default" ]; then
@@ -388,7 +387,7 @@ jobs:
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
       uses: actions/cache@v4
       with:
-        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}-${{ env.CACHE_DATE }}
+        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}-${{ env.FEEDS_HASH }}
         restore-keys: |
           ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}-
           ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-
@@ -628,48 +627,6 @@ jobs:
         tag_name: ${{ env.DEVICE_NAME }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
-
-    - name: 清理旧缓存
-      if: env.CACHEWRTBUILD_SWITCH == 'true' && steps.compile.outputs.status == 'success'
-      run: |
-        source ${{ env.BUILD_SCRIPT }}
-        
-        # 定义删除缓存函数，减少重复代码
-        delete_old_caches() {
-          local cache_type=$1
-          local cache_key_pattern=$2
-          local keep_recent=${3:-${{ env.KEEP_RECENT_CACHES }}}
-          
-          log_info "获取${cache_type}缓存列表..." 0
-          CACHE_LIST=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/caches?key=${cache_key_pattern}&per_page=100" \
-            | jq -r '.actions_caches[] | .id + " " + .created_at' 2>/dev/null || echo "")
-          if [ -z "$CACHE_LIST" ]; then
-            log_error "没有找到${cache_type}缓存或API请求失败" 0
-            return
-          fi
-          CACHES_TO_DELETE=$(echo "$CACHE_LIST" | sort -k2 -r | tail -n +$((keep_recent + 1)) | cut -d ' ' -f 1)
-          
-          if [ -n "$CACHES_TO_DELETE" ]; then
-            log_info "将删除以下${cache_type}缓存ID: $CACHES_TO_DELETE" 0
-            for cache_id in $CACHES_TO_DELETE; do
-              log_success "删除${cache_type}缓存ID: $cache_id" 0
-              curl -s -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                "https://api.github.com/repos/${{ github.repository }}/actions/caches/$cache_id" >/dev/null
-            done
-          else
-            log_info "没有需要删除的${cache_type}旧缓存" 0
-          fi
-        }
-        delete_old_caches "编译" "${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}"
-        delete_old_caches "软件包" "${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-dl-${{ env.CACHE_VERSION }}"
-        
-        log_separator "缓存状态" 0
-        log_highlight "ccache: $(du -sh $SOURCE_DIR/.ccache | cut -f 1)" 0
-        log_highlight "staging: $(du -sh $SOURCE_DIR/staging_dir | cut -f 1)" 0
-        log_highlight "dl: $(du -sh $SOURCE_DIR/dl | cut -f 1)" 0
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: 清理旧工作流记录
       uses: GitRML/delete-workflow-runs@main
