@@ -164,33 +164,33 @@ jobs:
             # 不中断流程，仅记录错误
           fi
           
-      - name: 清理旧哈希缓存并保存新缓存
+      - name: 删除旧缓存键（核心：避免 Post 步骤复用旧缓存）
         if: steps.compile.outputs.status == 'success'
         run: |
-          # 1. 查看 gh 版本（用于调试）
-          gh --version
-          echo "当前缓存列表："
-          gh cache list --key commitHash --json key,sizeInBytes,createdAt || true
-          echo "删除所有旧的 commitHash 缓存..."
+          echo "删除旧缓存键：commitHash"
+          # 使用 gh 工具删除旧缓存键（通过 ID 精确删除）
           gh cache list --key commitHash --json id | jq -r '.[]?.id' | while read -r id; do
             if [ -n "$id" ]; then
-              echo "删除缓存 ID: $id"
               gh cache delete "$id" 2>/dev/null || true
+              echo "已删除旧缓存 ID: $id"
             fi
           done
           echo "删除后剩余缓存："
-          gh cache list --key commitHash --json key,sizeInBytes || true
-          if [ -f .commitHash ]; then
-            echo "新哈希值：$(cat .commitHash)"
-            echo "上传新缓存..."
-            gh cache upload commitHash .commitHash
-            echo "新缓存上传成功"
-          else
-            echo "❌ 新哈希文件 .commitHash 不存在"
-            exit 1
-          fi
+          gh cache list --key commitHash --json key || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 保存新哈希缓存（用新键保存，避免覆盖）
+        if: steps.compile.outputs.status == 'success'
+        uses: actions/cache@main
+        with:
+          path: .commitHash
+          # 新缓存键：固定前缀 + 新哈希值（确保唯一性，避免与旧键冲突）
+          key: commitHash-${{ steps.getCommitInfo.outputs.commitHash }}
+          # 恢复键：优先匹配当前新键，其次匹配旧键（兼容后续读取）
+          restore-keys: |
+            commitHash-${{ steps.getCommitInfo.outputs.commitHash }}
+            commitHash
 
       - name: 清理旧工作流记录
         uses: GitRML/delete-workflow-runs@main
