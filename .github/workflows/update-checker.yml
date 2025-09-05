@@ -167,17 +167,26 @@ jobs:
       - name: 清理旧哈希缓存并保存新缓存
         if: steps.compile.outputs.status == 'success'
         run: |
+          # 1. 查看 gh 版本（用于调试）
+          gh --version
+          echo "当前缓存列表："
+          gh cache list --key commitHash --json key,sizeInBytes,createdAt || true
           echo "删除所有旧的 commitHash 缓存..."
-          gh cache delete --key commitHash 2>/dev/null || true
-          echo "剩余缓存列表："
-          gh cache list --key commitHash --json key,size || true
+          gh cache list --key commitHash --json id | jq -r '.[]?.id' | while read -r id; do
+            if [ -n "$id" ]; then
+              echo "删除缓存 ID: $id"
+              gh cache delete "$id" 2>/dev/null || true
+            fi
+          done
+          echo "删除后剩余缓存："
+          gh cache list --key commitHash --json key,sizeInBytes || true
           if [ -f .commitHash ]; then
             echo "新哈希值：$(cat .commitHash)"
-            echo "保存新缓存..."
-            gh cache upload --key commitHash .commitHash
-            echo "新缓存已保存，大小：$(du -sh .commitHash | cut -f 1)"
+            echo "上传新缓存..."
+            gh cache upload commitHash .commitHash
+            echo "新缓存上传成功"
           else
-            echo "❌ 新哈希文件不存在，无法保存缓存"
+            echo "❌ 新哈希文件 .commitHash 不存在"
             exit 1
           fi
         env:
