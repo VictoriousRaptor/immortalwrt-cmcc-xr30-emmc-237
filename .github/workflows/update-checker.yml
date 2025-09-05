@@ -171,7 +171,7 @@ jobs:
             echo "删除缓存: $key"
             gh cache delete "$key"
           done
-          echo "缓存状态:"
+          echo "缓存状态:$(cat .commitHash)"
           echo "ccache: $(du -sh .commitHash | cut -f 1)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
