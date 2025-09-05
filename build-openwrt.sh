@@ -125,18 +125,31 @@ init_env() {
 log_info "开始初始化编译环境..."
 # 更新系统并安装依赖
 sudo -E apt-get -qq update
-sudo -E apt-get -qq install \
-    ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison \
-    build-essential bzip2 ccache cmake cpio curl device-tree-compiler \
-    fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged \
-    help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
-    libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev \
-    libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp \
-    nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 \
-    python3-pyelftools python3-setuptools libpython3-dev qemu-utils rsync \
-    scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip \
-    vim wget xmlto xxd zlib1g-dev
-
+# sudo -E apt-get -qq install \
+#     ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison \
+#     build-essential bzip2 ccache cmake cpio curl device-tree-compiler \
+#     fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged \
+#     help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev \
+#     libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev \
+#     libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp \
+#     nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 \
+#     python3-pyelftools python3-setuptools libpython3-dev qemu-utils rsync \
+#     scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip \
+#     vim wget xmlto xxd zlib1g-dev
+sudo -E apt-get -qq install -y --no-install-recommends \
+        # 最小编译工具集
+        build-essential gcc-multilib g++-multilib binutils \
+        # 编译必备工具链
+        autoconf automake autopoint bison flex gettext gawk \
+        # 必需的库文件
+        libc6-dev-i386 libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+        libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev zlib1g-dev zstd \
+        # 必需的系统工具
+        git wget ca-certificates ccache cmake curl device-tree-compiler pkgconf \
+        # 必需的文件处理工具
+        rsync unzip file \
+        # 必需的编程语言
+        python2.7 python3 python3-distutils python3-pyelftools
 # 清理系统
 sudo -E apt-get -qq autoremove --purge
 sudo -E apt-get -qq clean
@@ -146,7 +159,9 @@ sudo timedatectl set-timezone "$TZ"
 sudo mkdir -p "$WORK_DIR"
 sudo chown -R $USER:$GROUPS "$WORK_DIR"
 log_success "编译环境初始化完成！"
-log_info "工作目录：$WORK_DIR"
+log_info "当前目录：$PWD"
+log_info "项目目录：$WORK_DIR"
+log_info "源码目录：$SOURCE_DIR"
 }
 
 # ======================================================

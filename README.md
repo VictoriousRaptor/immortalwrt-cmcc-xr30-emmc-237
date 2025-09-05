@@ -9,6 +9,16 @@
 2. [padavanonly/immortalwrt-mt798x-6.6](https://github.com/padavanonly/immortalwrt-mt798x-6.6) - ImmortalWrt 24.10（Linux内核6.6）固件源码
 
 - 专门为中国移动RAX3000M路由器（eMMC存储版本）定制，提供自动化编译、自定义插件和优化功能。
+- 两种编译类型：
+  - 1. Host：直接在主机环境下编译，无需Docker镜像
+    - 优势：
+      - 编译速度相对较快
+      - 资源占用少
+  - 2. Docker：在主机环境下运行Docker容器在容器中编译，确保环境一致性
+    - 优势：
+      - 环境一致性：避免不同系统环境导致的编译错误
+      - 依赖管理：集成编译依赖以及最新的固件源码
+      - 隔离性：编译过程在容器中运行，不会影响主机系统
 - 编译其他设备
    - 1.替换.config配置文件或更改其相关设备内容
    - 2.通过‘make menuconfig’选择对应设备

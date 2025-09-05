@@ -577,7 +577,7 @@ jobs:
         grep -E '^CONFIG_PACKAGE_luci-(app|theme)-.*=y$' "${SOURCE_DIR}/.config" 2>/dev/null | 
           awk -F'[=]' '{print substr($1, 16)}' | 
           sed '/^$/d' > "/tmp/plugins.tmp"
-
+        COMMIT_LOGS_RESTORED=$(echo "$COMMIT_LOGS" | tr '|' '\n' | sed 's/^/  - /')
         cat > release.txt <<EOF
         ### ${DEVICE_NAME}-immortalwrt 固件
 
@@ -607,11 +607,10 @@ jobs:
         fi
         cat >> release.txt <<EOF
         \`\`\`
-        COMMIT_LOGS_RESTORED=$(echo "$COMMIT_LOGS" | tr '|' '\n' | sed 's/^/  - /')
         #### 编译信息
         - 触发来源：${TRIGGER_SOURCE}
         - 工作编号：#${GITHUB_RUN_NUMBER}
-        - 编译方式：${BUILD_TYPE}
+        - 编译类型：${BUILD_TYPE}
         - 编译时间：$(date +"%Y-%m-%d %H:%M:%S %Z")
         - 源码URL：${REPO_URL}
         - 源码分支：${REPO_BRANCH}
