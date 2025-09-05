@@ -36,59 +36,62 @@ jobs:
           
       - name: 对比提交哈希
         id: cacheHash
-        uses: actions/cache@v3
+        uses: actions/cache@main
         with:
           path: .commitHash
           key: HEAD-${{ steps.getHash.outputs.commitHash }}
       
       - name: 获取详细更新日志
         id: getCommitInfo
-        if: steps.cacheHash.outputs.cache-hit != 'true'
         run: |
-          echo "开始执行源码更新检测..."
-          echo "目标仓库：${REPO_URL}"
-          echo "分支：${REPO_BRANCH}"
-          echo "最新提交哈希：${{ steps.getHash.outputs.commitHash }}"
-          
-          if [ -f .commitHash ]; then
-            LAST_HASH=$(cat .commitHash)
-            echo "上次记录的哈希值：${LAST_HASH}"
-            
-            echo "正在获取两次提交之间的更新日志..."
-            try_count=0
-            max_tries=3
-            COMMIT_LOGS=""
-            
-            while [ $try_count -lt $max_tries ]; do
-              if git log --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" ${LAST_HASH}..${COMMIT_HASH} > /tmp/commit_logs.txt 2>/dev/null; then
-                COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
-                break
+          if: steps.cacheHash.outputs.cache-hit != 'true'
+              echo "开始执行源码更新检测..."
+              echo "目标仓库：${REPO_URL}"
+              echo "分支：${REPO_BRANCH}"
+              echo "最新提交哈希：${{ steps.getHash.outputs.commitHash }}"
+              
+              if [ -f .commitHash ]; then
+                LAST_HASH=$(cat .commitHash)
+                echo "上次记录的哈希值：${LAST_HASH}"
+                
+                echo "正在获取两次提交之间的更新日志..."
+                try_count=0
+                max_tries=3
+                COMMIT_LOGS=""
+                
+                while [ $try_count -lt $max_tries ]; do
+                  if git log --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" ${LAST_HASH}..${COMMIT_HASH} > /tmp/commit_logs.txt 2>/dev/null; then
+                    COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
+                    break
+                  else
+                    try_count=$((try_count+1))
+                    echo "尝试 $try_count: 无法直接获取两次哈希之间的日志，可能是提交历史超过了获取深度。"
+                    
+                    git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH} > /tmp/commit_logs.txt
+                    COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
+                    
+                    if [ $try_count -eq $max_tries ]; then
+                      echo "已获取最新的10条提交日志作为备选。"
+                      break
+                    fi
+                    
+                    git fetch --depth $((100 * (try_count + 1))) origin "${REPO_BRANCH}"
+                  fi
+                done
               else
-                try_count=$((try_count+1))
-                echo "尝试 $try_count: 无法直接获取两次哈希之间的日志，可能是提交历史超过了获取深度。"
-                
-                git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH} > /tmp/commit_logs.txt
-                COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
-                
-                if [ $try_count -eq $max_tries ]; then
-                  echo "已获取最新的10条提交日志作为备选。"
-                  break
-                fi
-                
-                git fetch --depth $((100 * (try_count + 1))) origin "${REPO_BRANCH}"
+                echo "首次运行，无历史哈希记录，获取最新的10条提交日志。"
+                COMMIT_LOGS=$(git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH})
               fi
-            done
+              
+              echo "成功获取更新日志："
+              echo "${COMMIT_LOGS}"
+              COMMIT_LOGS_SINGLE=$(echo "$COMMIT_LOGS" | tr '\n\r' '|' | sed 's/|||*/|||/g')
+              echo "commitLogs<<EOF" >> ${GITHUB_OUTPUT}
+              echo "${COMMIT_LOGS_SINGLE}" >> ${GITHUB_OUTPUT}
+              echo "EOF" >> ${GITHUB_OUTPUT}
           else
-            echo "首次运行，无历史哈希记录，获取最新的10条提交日志。"
-            COMMIT_LOGS=$(git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH})
+              echo "无更新日志，跳过触发构建镜像。"
           fi
-          
-          echo "成功获取更新日志："
-          echo "${COMMIT_LOGS}"
-          COMMIT_LOGS_SINGLE=$(echo "$COMMIT_LOGS" | tr '\n\r' '|' | sed 's/|||*/|||/g')
-          echo "commitLogs<<EOF" >> ${GITHUB_OUTPUT}
-          echo "${COMMIT_LOGS_SINGLE}" >> ${GITHUB_OUTPUT}
-          echo "EOF" >> ${GITHUB_OUTPUT}
       
       - name: 保存新提交哈希
         if: steps.cacheHash.outputs.cache-hit != 'true'
