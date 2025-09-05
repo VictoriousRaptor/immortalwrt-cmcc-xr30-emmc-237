@@ -173,7 +173,7 @@ rm -rf "$SOURCE_DIR"
 for i in {1..3};
 do
     git clone --depth 1 --single-branch -b $REPO_BRANCH $REPO_URL "$SOURCE_DIR" && break
-    log_errir "克隆失败，重试第$i次..." && sleep 5
+    log_error "克隆失败，重试第$i次..." && sleep 5
 done
 
 # 检查克隆是否成功
@@ -245,7 +245,7 @@ log_info "开始更新并安装feeds..."
 # 更新feeds，带重试机制
 cd "$SOURCE_DIR"
 for i in {1..3}; do 
-    ./scripts/feeds update -a && break || (log_errir "更新feeds失败，重试第$i次" && sleep 10)
+    ./scripts/feeds update -a && break || (log_error "更新feeds失败，重试第$i次" && sleep 10)
 done
 # 安装feeds
 ./scripts/feeds install -a -j$(nproc)
@@ -384,16 +384,20 @@ log_success "软件包下载完成！"
 compile_firmware() {
     log_info "开始编译固件（使用$(nproc)线程）..."
     cd "$SOURCE_DIR"
-    if make -j$(nproc); then
+    (make -j$(nproc))
+    local make_exit_code=$?
+    if [ $make_exit_code -eq 0 ]; then
         log_success "固件编译完成！"
         return 0
     else
         log_error "多线程编译失败，尝试单线程编译..."
-        if make -j1 V=s; then
+        (make -j1 V=s)
+        local make_single_exit_code=$?
+        if [ $make_single_exit_code -eq 0 ]; then
             log_success "单线程编译完成！"
             return 0
         else
-            log_error "固件编译失败！"
+            log_error "固件编译失败，编译退出码：$make_single_exit_code"
             exit 1
         fi
     fi

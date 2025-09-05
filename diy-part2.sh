@@ -25,15 +25,15 @@ fi
 # 修改插件名字
 # 参数1: 原名称
 # 参数2: 新名称
-update_name(){
-    local old_name=$1
-    local new_name=$2
-    if grep -r '"$old_name"' . > /dev/null; then
-        echo -e "✅ 找到 $old_name，开始替换为 $new_name"
-        grep -rl '"$old_name"' . | xargs -r sed -i 's?"$old_name"?"$new_name"?g'
-    else
-        echo -e "ℹ️ 未找到 $old_name，跳过替换"
-    fi
+update_name(){  
+    local old_name=$1  
+    local new_name=$2  
+    if grep -r "$old_name" . > /dev/null; then  
+        echo -e "✅ 找到 $old_name，开始替换为 $new_name"  
+        grep -rl "$old_name" . | xargs -r sed -i "s?$old_name?$new_name?g"  
+    else  
+        echo -e "ℹ️ 未找到 $old_name，跳过替换"  
+    fi  
 }
 # 替换插件名字
 update_name "终端" "TTYD"

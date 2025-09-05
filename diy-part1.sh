@@ -50,7 +50,7 @@ clone_package() {
 GIT_CLONE_OUTPUT=$(git clone --depth 1 "$repo" "$dir" 2>&1)
 CLONE_EXIT_CODE=$?
 if [ $CLONE_EXIT_CODE -eq 0 ]; then
-    echo -e "✅ 克隆包：$repo 到 $dir"
+    echo -e "✅ 克隆包：$repo 到 $dir 成功！"
 else
     echo -e "❌ 克隆包：$repo 到 $dir 失败！"
     echo -e "❌ 错误信息：$GIT_CLONE_OUTPUT"

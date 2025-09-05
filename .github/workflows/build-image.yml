@@ -68,13 +68,13 @@ jobs:
         if: env.NEED_CLEAN == 'true'
         uses: danshui-git/free-disk-space@main
         with:
-          remove_android: true
+          remove_android: false
           remove_dotnet: true
           remove_haskell: true
           remove_tool_cache: true
           remove_swap: true
-          remove_docker_image: true
-          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
+          remove_docker_image: false
+          # remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* *llvm* mysql* dotnet-sdk-*"
           remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/lib/node_modules /usr/local/share/chromium /usr/local/share/powershell"
 
       - name: 查看磁盘空间状态
@@ -120,6 +120,8 @@ jobs:
           build-args: |
             BASE_IMAGE_REGISTRY=${{ env.BASE_IMAGE_REGISTRY || 'docker.io/library/' }}
             BASE_IMAGE_TAG=${{ env.BASE_IMAGE_TAG }}
+            USER_ID=$(id -u)
+            GROUP_ID=$(id -g)
             FORCE_UNSAFE_CONFIGURE=1
             # 使用从环境变量获取的仓库信息
             BUILD_TRIGGER=$(git ls-remote ${{ env.REPO_URL }} ${{ env.REPO_BRANCH }} | awk '{print $1}')
@@ -198,6 +200,8 @@ jobs:
           echo "✅ jq工具安装完成"
           echo "当前jq版本：$(jq --version)"
           echo "=== 开始触发编译固件工作流 ==="
+          ESCAPED_COMMIT_LOGS=$(echo "${COMMIT_LOGS}" | jq -Rsa .)
+          ESCAPED_TRIGGER_SOURCE=$(echo "${TRIGGER_SOURCE}>构建镜像触发编译固件" | jq -Rsa .)
           BUILD_TRIGGER_PAYLOAD=$(cat << EOF
           {
             "event_type": "构建镜像触发自动编译固件",
@@ -213,8 +217,8 @@ jobs:
                 "repo_url": "${REPO_URL}",
                 "repo_branch": "${REPO_BRANCH}",  
                 "commit_hash": "${COMMIT_HASH}",
-                "commit_logs": "${COMMIT_LOGS}",
-                "trigger_source": "${TRIGGER_SOURCE}>构建镜像触发编译固件"
+                "commit_logs": ${ESCAPED_COMMIT_LOGS},
+                "trigger_source": ${ESCAPED_TRIGGER_SOURCE}
               }
             }
           }
@@ -222,7 +226,7 @@ jobs:
           )
           
           RESPONSE=$(curl -X POST \
-            -H "Authorization: token ${{ secrets.REPO_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/dispatches \
             -d "$BUILD_TRIGGER_PAYLOAD" 2>&1)
