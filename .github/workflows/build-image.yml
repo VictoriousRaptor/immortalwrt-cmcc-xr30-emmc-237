@@ -28,6 +28,7 @@ jobs:
         uses: actions/checkout@main
 
       - name: 设置环境变量
+        shell: bash
         run: |
           # 根据触发来源设置环境变量
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
