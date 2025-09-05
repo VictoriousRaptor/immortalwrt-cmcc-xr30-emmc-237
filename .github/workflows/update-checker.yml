@@ -84,10 +84,10 @@ jobs:
           
           echo "成功获取更新日志："
           echo "${COMMIT_LOGS}"
-          
+          COMMIT_LOGS_SINGLE=$(echo "$COMMIT_LOGS" | tr '\n\r' '|' | sed 's/|||*/|||/g')
           echo "commitHash=${COMMIT_HASH}" >> ${GITHUB_OUTPUT}
           echo "commitLogs<<EOF" >> ${GITHUB_OUTPUT}
-          echo "${COMMIT_LOGS}" >> ${GITHUB_OUTPUT}
+          echo "${COMMIT_LOGS_SINGLE}" >> ${GITHUB_OUTPUT}
           echo "EOF" >> ${GITHUB_OUTPUT}
 
       # 步骤3：对比提交哈希（判断是否有更新）
