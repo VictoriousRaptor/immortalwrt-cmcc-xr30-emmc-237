@@ -86,9 +86,8 @@ env:
   DEFAULT_DIR: /opt/build #容器默认工作目录
   GITHUB_RUN_NUMBER: ${{ github.run_number }}
   # 新增缓存相关变量
-  CCACHE_DIR: ./openwrt/.ccache
-  CCACHE_SIZE: 10G
-  CCACHE_COMPRESSION_LEVEL: 6
+  CACHE_VERSION: v1
+  KEEP_RECENT_CACHES: 3
   DEVICE_NAME: cmcc_rax3000m-emmc
   KERNEL_VERSION: "6.6"
   SYSTEM_VERSION: "24.10"
@@ -387,20 +386,23 @@ jobs:
         
     - name: 缓存加速编译
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
-      uses: actions/cache@main
+      uses: actions/cache@v4
       with:
-        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.HASH }} ${{ env.CACHE_DATE }}
-        restore-keys: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-
+        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}-${{ env.CACHE_DATE }}
+        restore-keys: |
+          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}-
+          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-
         path: |
           ${{ env.SOURCE_DIR }}/.ccache
           ${{ env.SOURCE_DIR }}/staging_dir
-    
+
     - name: 缓存已下载的软件包
-      uses: actions/cache@main
+      uses: actions/cache@v4
       with:
-        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-dl-${{ env.FEEDS_HASH }}
+        key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-dl-${{ env.CACHE_VERSION }}-${{ env.FEEDS_HASH }}
         restore-keys: |
-          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-dl-
+          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-dl-${{ env.CACHE_VERSION }}-
+          ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-dl-
         path: ${{ env.SOURCE_DIR }}/dl
 
     - name: 刷新缓存
@@ -632,12 +634,41 @@ jobs:
       if: env.CACHEWRTBUILD_SWITCH == 'true' && steps.compile.outputs.status == 'success'
       run: |
         source ${{ env.BUILD_SCRIPT }}
-        gh cache list --key ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}- --json key --jq '.[] | .key' | while read -r key; do
-          gh cache delete "$key"
-        done
+        
+        # 定义删除缓存函数，减少重复代码
+        delete_old_caches() {
+          local cache_type=$1
+          local cache_key_pattern=$2
+          local keep_recent=${3:-${{ env.KEEP_RECENT_CACHES }}}
+          
+          log_info "获取${cache_type}缓存列表..." 0
+          CACHE_LIST=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/caches?key=${cache_key_pattern}&per_page=100" \
+            | jq -r '.actions_caches[] | .id + " " + .created_at' 2>/dev/null || echo "")
+          if [ -z "$CACHE_LIST" ]; then
+            log_error "没有找到${cache_type}缓存或API请求失败" 0
+            return
+          fi
+          CACHES_TO_DELETE=$(echo "$CACHE_LIST" | sort -k2 -r | tail -n +$((keep_recent + 1)) | cut -d ' ' -f 1)
+          
+          if [ -n "$CACHES_TO_DELETE" ]; then
+            log_info "将删除以下${cache_type}缓存ID: $CACHES_TO_DELETE" 0
+            for cache_id in $CACHES_TO_DELETE; do
+              log_success "删除${cache_type}缓存ID: $cache_id" 0
+              curl -s -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/caches/$cache_id" >/dev/null
+            done
+          else
+            log_info "没有需要删除的${cache_type}旧缓存" 0
+          fi
+        }
+        delete_old_caches "编译" "${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-ccachestaging-${{ env.CACHE_VERSION }}"
+        delete_old_caches "软件包" "${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-dl-${{ env.CACHE_VERSION }}"
+        
         log_separator "缓存状态" 0
         log_highlight "ccache: $(du -sh $SOURCE_DIR/.ccache | cut -f 1)" 0
         log_highlight "staging: $(du -sh $SOURCE_DIR/staging_dir | cut -f 1)" 0
+        log_highlight "dl: $(du -sh $SOURCE_DIR/dl | cut -f 1)" 0
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

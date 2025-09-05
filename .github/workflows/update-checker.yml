@@ -36,7 +36,7 @@ jobs:
           
       - name: 对比提交哈希
         id: cacheHash
-        uses: actions/cache@main
+        uses: actions/cache@v4
         with:
           path: .commitHash
           key: HEAD-${{ steps.getHash.outputs.commitHash }}
