@@ -130,20 +130,32 @@ jobs:
         # 根据触发来源设置环境变量
         source ${{ env.BUILD_SCRIPT }}
         if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-          # 从repository-dispatch事件获取参数
-          echo "BUILD_TYPE=${{ github.event.client_payload.inputs.build_type }}" >> $GITHUB_ENV 
-          echo "REPO_URL=${{ github.event.client_payload.inputs.repo_url }}" >> $GITHUB_ENV
-          echo "REPO_BRANCH=${{ github.event.client_payload.inputs.repo_branch }}" >> $GITHUB_ENV
-          echo "COMMIT_HASH=${{ github.event.client_payload.inputs.commit_hash }}" >> $GITHUB_ENV
-          echo "LAN_IP=${{ github.event.client_payload.inputs.lan_ip }}" >> $GITHUB_ENV
-          echo "DEFAULT_THEME=${{ github.event.client_payload.inputs.default_theme }}" >> $GITHUB_ENV
-          echo "HOSTNAME=${{ github.event.client_payload.inputs.hostname }}" >> $GITHUB_ENV
-          echo "HIGH_POWER_5G=${{ github.event.client_payload.inputs.high_power_5g }}" >> $GITHUB_ENV
-          echo "SSH=${{ github.event.client_payload.inputs.ssh }}" >> $GITHUB_ENV
-          echo "CACHEWRTBUILD_SWITCH=${{ github.event.client_payload.inputs.cachewrtbuild_switch }}" >> $GITHUB_ENV
-          echo "COMMIT_LOGS=${{ github.event.client_payload.inputs.commit_logs }}" >> $GITHUB_ENV
-          echo "TRIGGER_SOURCE=${{ github.event.client_payload.inputs.trigger_source }}" >> $GITHUB_ENV
-          log_highlight "从${TRIGGER_SOURCE}工作流触发，使用传递的参数"
+          BUILD_TYPE=${{ github.event.client_payload.inputs.build_type }}
+          REPO_URL=${{ github.event.client_payload.inputs.repo_url }}
+          REPO_BRANCH=${{ github.event.client_payload.inputs.repo_branch }}
+          COMMIT_HASH=${{ github.event.client_payload.inputs.commit_hash }}
+          LAN_IP=${{ github.event.client_payload.inputs.lan_ip }}
+          DEFAULT_THEME=${{ github.event.client_payload.inputs.default_theme }}
+          HOSTNAME=${{ github.event.client_payload.inputs.hostname }}
+          HIGH_POWER_5G=${{ github.event.client_payload.inputs.high_power_5g }}
+          SSH=${{ github.event.client_payload.inputs.ssh }}
+          CACHEWRTBUILD_SWITCH=${{ github.event.client_payload.inputs.cachewrtbuild_switch }}
+          COMMIT_LOGS=${{ github.event.client_payload.inputs.commit_logs }}
+          TRIGGER_SOURCE=${{ github.event.client_payload.inputs.trigger_source }}
+          echo "BUILD_TYPE=${BUILD_TYPE}" >> $GITHUB_ENV 
+          echo "REPO_URL=${REPO_URL}" >> $GITHUB_ENV
+          echo "REPO_BRANCH=${REPO_BRANCH}" >> $GITHUB_ENV
+          echo "COMMIT_HASH=${COMMIT_HASH}" >> $GITHUB_ENV
+          echo "COMMIT_LOGS=${COMMIT_LOGS}" >> $GITHUB_ENV
+          echo "LAN_IP=${LAN_IP}" >> $GITHUB_ENV
+          echo "DEFAULT_THEME=${DEFAULT_THEME}" >> $GITHUB_ENV
+          echo "HOSTNAME=${HOSTNAME}" >> $GITHUB_ENV
+          echo "HIGH_POWER_5G=${HIGH_POWER_5G}" >> $GITHUB_ENV
+          echo "SSH=${SSH}" >> $GITHUB_ENV
+          echo "CACHEWRTBUILD_SWITCH=${CACHEWRTBUILD_SWITCH}" >> $GITHUB_ENV
+          echo "COMMIT_LOGS=${COMMIT_LOGS}" >> $GITHUB_ENV
+          echo "TRIGGER_SOURCE=${TRIGGER_SOURCE}" >> $GITHUB_ENV
+          log_highlight "从${TRIGGER_SOURCE}工作流触发，使用传递的参数" 1
           log_info "编译类型: ${BUILD_TYPE}" 0
           log_info "源码仓库: ${REPO_URL}" 0
           log_info "源码分支: ${REPO_BRANCH}" 0
