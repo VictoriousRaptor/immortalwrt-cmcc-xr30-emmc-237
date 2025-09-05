@@ -25,94 +25,54 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: 提取缓存哈希
-        id: restoreCache
-        uses: actions/cache@main
+      - name: 获取最新提交哈希
+        id: getHash
+        run: |
+          git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
+          echo "commitHash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: 对比提交哈希
+        id: cacheHash
+        uses: actions/cache@v3
         with:
-          path: .commitHash  # 缓存文件路径
-          key: commitHash
-          restore-keys: commitHash
-
-      - name: 获取最新提交信息
+          path: .commitHash
+          key: HEAD-${{ steps.getHash.outputs.commitHash }}
+      
+      - name: 获取详细更新日志
         id: getCommitInfo
+        if: steps.cacheHash.outputs.cache-hit != 'true'
         run: |
           echo "开始执行源码更新检测..."
           echo "目标仓库：${REPO_URL}"
           echo "分支：${REPO_BRANCH}"
-
+          echo "最新提交哈希：${{ steps.getHash.outputs.commitHash }}"
+          
+          # 初始化仓库以获取更完整的历史
           git init
           git remote add origin "${REPO_URL}"
           git fetch --depth 100 origin "${REPO_BRANCH}" || git fetch origin "${REPO_BRANCH}"
           
-          COMMIT_HASH=$(git rev-parse origin/${REPO_BRANCH})
-          echo "成功获取最新提交哈希：${COMMIT_HASH}"
+          COMMIT_LOGS=""
           
-          if [ -f .commitHash ]; then
-            LAST_HASH=$(cat .commitHash)
-            echo "上次记录的哈希值：${LAST_HASH}"
-            
-            echo "正在获取两次提交之间的更新日志..."
-            try_count=0
-            max_tries=3
-            COMMIT_LOGS=""
-            
-            while [ $try_count -lt $max_tries ]; do
-              if git log --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" ${LAST_HASH}..${COMMIT_HASH} > /tmp/commit_logs.txt 2>/dev/null; then
-                COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
-                break
-              else
-                try_count=$((try_count+1))
-                echo "尝试 $try_count: 无法直接获取两次哈希之间的日志，可能是提交历史超过了获取深度。"
-                
-                git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH} > /tmp/commit_logs.txt
-                COMMIT_LOGS=$(cat /tmp/commit_logs.txt)
-                
-                if [ $try_count -eq $max_tries ]; then
-                  echo "已获取最新的10条提交日志作为备选。"
-                  break
-                fi
-                
-                git fetch --depth $((100 * (try_count + 1))) origin "${REPO_BRANCH}"
-              fi
-            done
-          else
-            echo "首次运行，无历史哈希记录，获取最新的10条提交日志。"
-            COMMIT_LOGS=$(git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH})
-          fi
+          # 如果是首次运行，获取最新的10条提交日志
+          echo "首次运行或检测到源码更新，获取最新的10条提交日志。"
+          COMMIT_LOGS=$(git log -10 --pretty=format:"%h: %s %ad" --date=format:"%Y-%m-%d %H:%M:%S" origin/${REPO_BRANCH})
           
           echo "成功获取更新日志："
           echo "${COMMIT_LOGS}"
           COMMIT_LOGS_SINGLE=$(echo "$COMMIT_LOGS" | tr '\n\r' '|' | sed 's/|||*/|||/g')
-          echo "commitHash=${COMMIT_HASH}" >> ${GITHUB_OUTPUT}
           echo "commitLogs<<EOF" >> ${GITHUB_OUTPUT}
           echo "${COMMIT_LOGS_SINGLE}" >> ${GITHUB_OUTPUT}
           echo "EOF" >> ${GITHUB_OUTPUT}
-
-      - name: 对比提交哈希（检测更新）
-        id: compareHash
+      
+      - name: 保存新提交哈希
+        if: steps.cacheHash.outputs.cache-hit != 'true'
         run: |
-          CURRENT_HASH=${{ steps.getCommitInfo.outputs.commitHash }}
-          echo "当前提交哈希: ${CURRENT_HASH}"
-          
-          if [ -f .commitHash ]; then
-            LAST_HASH=$(cat .commitHash)
-            echo "上次提交哈希: ${LAST_HASH}"
-            
-            if [ "${CURRENT_HASH}" = "${LAST_HASH}" ]; then
-              echo "哈希值相同，源码无更新，无需触发镜像构建"
-              echo "hasUpdate=false" >> ${GITHUB_OUTPUT}
-            else
-              echo "哈希值不同，检测到源码更新！"
-              echo "hasUpdate=true" >> ${GITHUB_OUTPUT}
-            fi
-          else
-            echo "首次运行，无历史哈希记录，视为有更新"
-            echo "hasUpdate=true" >> ${GITHUB_OUTPUT}
-          fi
-
+          echo ${{ steps.getHash.outputs.commitHash }} | tee .commitHash
+      
       - name: 触发构建镜像
         id: compile
-        if: steps.compareHash.outputs.hasUpdate == 'true'
+        if: steps.cacheHash.outputs.cache-hit != 'true'
         run: |
           echo "=== 安装jq工具用于解析JSON ==="
           sudo apt-get update
@@ -128,7 +88,7 @@ jobs:
               "inputs": {
                 "repo_url": "${{ env.REPO_URL }}",
                 "repo_branch": "${{ env.REPO_BRANCH }}",
-                "commit_hash": "${{ steps.getCommitInfo.outputs.commitHash }}",
+                "commit_hash": "${{ steps.getHash.outputs.commitHash }}",
                 "commit_logs": ${ESCAPED_COMMIT_LOGS},
                 "trigger_source": "检测固件源码更新"
               }
@@ -151,47 +111,13 @@ jobs:
             echo "  - 固件源码URL: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_url')"
             echo "  - 固件源码分支: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.repo_branch')"
             echo "  - 最新哈希值: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_hash')"
-            echo "  - 最新提交日志: $(echo "$BUILD_TRIGGER_PAYLOAD" | jq -r '.client_payload.inputs.commit_logs')"
-            echo ${{ steps.getCommitInfo.outputs.commitHash }} > .commitHash
-            if [ $? -eq 0 ]; then
-                echo "status=success" >> $GITHUB_OUTPUT
-            else
-              echo "❌ 保存新提交哈希${{ steps.getCommitInfo.outputs.commitHash }}失败！"
-            fi
+            echo "status=success" >> $GITHUB_OUTPUT
           else
             echo "❌ 构建容器工作流触发失败！"
             echo "错误信息: $RESPONSE"
             # 不中断流程，仅记录错误
           fi
-          
-      - name: 删除旧缓存键（核心：避免 Post 步骤复用旧缓存）
-        if: steps.compile.outputs.status == 'success'
-        run: |
-          echo "删除旧缓存键：commitHash"
-          # 使用 gh 工具删除旧缓存键（通过 ID 精确删除）
-          gh cache list --key commitHash --json id | jq -r '.[]?.id' | while read -r id; do
-            if [ -n "$id" ]; then
-              gh cache delete "$id" 2>/dev/null || true
-              echo "已删除旧缓存 ID: $id"
-            fi
-          done
-          echo "删除后剩余缓存："
-          gh cache list --key commitHash --json key || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 保存新哈希缓存（用新键保存，避免覆盖）
-        if: steps.compile.outputs.status == 'success'
-        uses: actions/cache@main
-        with:
-          path: .commitHash
-          # 新缓存键：固定前缀 + 新哈希值（确保唯一性，避免与旧键冲突）
-          key: commitHash-${{ steps.getCommitInfo.outputs.commitHash }}
-          # 恢复键：优先匹配当前新键，其次匹配旧键（兼容后续读取）
-          restore-keys: |
-            commitHash-${{ steps.getCommitInfo.outputs.commitHash }}
-            commitHash
-
+      
       - name: 清理旧工作流记录
         uses: GitRML/delete-workflow-runs@main
         with:
