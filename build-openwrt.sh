@@ -311,53 +311,57 @@ if [ -n "$HOSTNAME" ]; then
     sed -i "s/echo OpenWrt-failsafe/echo ${HOSTNAME}-failsafe/g" "./package/base-files/files/lib/preinit/10_indicate_failsafe"
 fi
 if [ "$HIGH_POWER_5G" = "true" ] || [ "$HIGH_POWER_5G" = true ] || [ "$HIGH_POWER_5G" = "1" ]; then
-    log_info "5G高功率25db设置中..."
-    rm -f "./package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p"
-    if [ $? -eq 0 ]; then
-       log_success "删除 e2p 成功"
-    else
-       log_error "删除 e2p 失败"
-    fi
-    EEPROM_FILE="./package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/MT7981_iPAiLNA_EEPROM.bin"
-    if [ -f "$EEPROM_FILE" ]; then
-       mkdir -p "./files/lib/firmware"
-    ln -sf "./lib/firmware/MT7981_iPAiLNA_EEPROM.bin" "./files/lib/firmware/e2p"
-      if test -L "./files/lib/firmware/e2p"; then log_success "符号链接已创建"; else log_error "符号链接创建失败"; fi
-    else
-       log_error "$EEPROM_FILE 不存在，无法创建符号链接"
-      exit 1
-    fi
-    EEPROM_FILE=$(find "./package" -name MT7981_iPAiLNA_EEPROM.bin 2>/dev/null | head -n 1)
-    if [ -z "$EEPROM_FILE" ]; then
-        log_error "未找到 EEPROM 文件"
-        exit 1
-    fi
-    EXPECTED_CONTENT=$(printf '\x2B%.0s' {1..20})
-    CURRENT_CONTENT_RAW=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
-    READ_EXIT_CODE=$?
-    printf '%s' "$CURRENT_CONTENT_RAW" | grep -E 'records (in|out)|bytes copied' | while IFS= read -r line; do
+log_info "5G高功率25db设置中..."
+rm -f "./package/mtk/drivers/mt_wifi/files/mt7981-default-eeprom/e2p"
+if [ $? -eq 0 ]; then
+   log_success "删除 e2p 成功"
+else
+   log_error "删除 e2p 失败"
+fi
+EEPROM_FILE=$(find "./package" -name MT7981_iPAiLNA_EEPROM.bin 2>/dev/null | head -n 1)
+if [ -z "$EEPROM_FILE" ]; then
+    log_error "未找到 EEPROM 文件"
+    exit 1
+fi
+EXPECTED_CONTENT=$(printf '\x2B%.0s' {1..20})
+CURRENT_CONTENT_RAW=$(dd if="$EEPROM_FILE" bs=1 skip=$((0x445)) count=20 2>&1)
+READ_EXIT_CODE=$?
+printf '%s' "$CURRENT_CONTENT_RAW" | grep -E 'records (in|out)|bytes copied' | while IFS= read -r line; do
+    [ -n "$line" ] && log_info "$line"
+done
+if [ $READ_EXIT_CODE -ne 0 ]; then
+    log_error "读取EEPROM文件失败: $EEPROM_FILE"
+fi
+ACTUAL_EEPROM_DATA=$(printf '%s' "$CURRENT_CONTENT_RAW" | tail -c 20)
+if [ "$ACTUAL_EEPROM_DATA" != "$EXPECTED_CONTENT" ]; then
+    DD_WRITE_OUTPUT=$(echo -n "$EXPECTED_CONTENT" | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) count=20 conv=notrunc 2>&1)
+    WRITE_EXIT_CODE=$?
+    printf '%s' "$DD_WRITE_OUTPUT" | while IFS= read -r line; do
         [ -n "$line" ] && log_info "$line"
     done
-    if [ $READ_EXIT_CODE -ne 0 ]; then
-        log_error "读取EEPROM文件失败: $EEPROM_FILE"
-    fi
-    ACTUAL_EEPROM_DATA=$(printf '%s' "$CURRENT_CONTENT_RAW" | tail -c 20)
-    if [ "$ACTUAL_EEPROM_DATA" != "$EXPECTED_CONTENT" ]; then
-        DD_WRITE_OUTPUT=$(echo -n "$EXPECTED_CONTENT" | dd of="$EEPROM_FILE" bs=1 seek=$((0x445)) count=20 conv=notrunc 2>&1)
-        WRITE_EXIT_CODE=$?
-        printf '%s' "$DD_WRITE_OUTPUT" | while IFS= read -r line; do
-            [ -n "$line" ] && log_info "$line"
-        done
-        if [ $WRITE_EXIT_CODE -eq 0 ]; then
-            log_success "EEPROM 文件已更新: $EEPROM_FILE"
-        else
-            log_error "EEPROM 文件更新失败: $EEPROM_FILE"
-        fi
+    if [ $WRITE_EXIT_CODE -eq 0 ]; then
+        log_success "EEPROM 文件已更新: $EEPROM_FILE"
     else
-        log_success "EEPROM 文件无需修改: $EEPROM_FILE"
+        log_error "EEPROM 文件更新失败: $EEPROM_FILE"
     fi
-    
-    log_success "5G高功率25db设置完成"
+else
+    log_success "EEPROM 文件无需修改: $EEPROM_FILE"
+fi
+if [ -f "$EEPROM_FILE" ]; then
+   mkdir -p "./files/lib/firmware"
+   cp -f "$EEPROM_FILE" "./files/lib/firmware/MT7981_iPAiLNA_EEPROM.bin"
+   ln -sf "MT7981_iPAiLNA_EEPROM.bin" "./files/lib/firmware/e2p"
+   if test -f "./files/lib/firmware/e2p"; then 
+       log_success "符号链接已创建"
+   else 
+       log_error "符号链接创建失败"
+   fi
+else
+   log_error "$EEPROM_FILE 不存在，无法创建符号链接"
+   exit 1
+fi
+
+log_success "5G高功率25db设置完成"
 fi
 log_success "自定义配置加载完成！"
 }
