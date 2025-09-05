@@ -384,7 +384,7 @@ jobs:
           echo "FEEDS_HASH=default" >> $GITHUB_ENV
         fi
         
-    - name: 缓存加速编译
+    - name: 缓存编译数据
       if: env.CACHEWRTBUILD_SWITCH == 'true' || env.CACHEWRTBUILD_SWITCH == true
       uses: actions/cache@v4
       with:
@@ -396,7 +396,7 @@ jobs:
           ${{ env.SOURCE_DIR }}/.ccache
           ${{ env.SOURCE_DIR }}/staging_dir
 
-    - name: 缓存已下载的软件包
+    - name: 缓存已下载软件包
       uses: actions/cache@v4
       with:
         key: ${{ env.SOURCE_REPO }}-${{ env.REPO_BRANCH }}-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-dl-${{ env.CACHE_VERSION }}-${{ env.FEEDS_HASH }}
