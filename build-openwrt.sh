@@ -137,18 +137,12 @@ sudo -E apt-get -qq update
 #     scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip \
 #     vim wget xmlto xxd zlib1g-dev
 sudo -E apt-get -qq install -y --no-install-recommends \
-        # 最小编译工具集
         build-essential gcc-multilib g++-multilib binutils \
-        # 编译必备工具链
         autoconf automake autopoint bison flex gettext gawk \
-        # 必需的库文件
         libc6-dev-i386 libelf-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
         libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev zlib1g-dev zstd \
-        # 必需的系统工具
         git wget ca-certificates ccache cmake curl device-tree-compiler pkgconf \
-        # 必需的文件处理工具
         rsync unzip file \
-        # 必需的编程语言
         python2.7 python3 python3-distutils python3-pyelftools
 # 清理系统
 sudo -E apt-get -qq autoremove --purge
